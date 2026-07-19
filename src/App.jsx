@@ -4140,16 +4140,44 @@ export default function App() {
                     {/* Firebase Cloud Firestore Integration - Simplified Status */}
                     <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '2rem', paddingTop: '2rem' }}>
                       <h3 className="settings-section-title">☁️ ฐานข้อมูลคลาวด์ (Database Status)</h3>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)' }}>สถานะการเชื่อมต่อ:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', padding: '1rem', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)' }}>สถานะการเชื่อมต่อ:</span>
+                          {isFirebaseConfigured() ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'var(--success-glow)', border: '1px solid var(--success)', borderRadius: '12px', color: 'var(--success)', fontWeight: 'bold' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', boxShadow: '0 0 8px var(--success)', display: 'inline-block' }}></span> 🟢 เชื่อมต่อคลาวด์เรียบร้อย (Firebase Active)
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'var(--warning-glow)', border: '1px solid var(--warning)', borderRadius: '12px', color: 'var(--warning)', fontWeight: 'bold' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--warning)', boxShadow: '0 0 8px var(--warning)', display: 'inline-block' }}></span> 🟡 ทำงานในโหมดจำลองเครื่องเดียว (Local Mode)
+                            </span>
+                          )}
+                        </div>
+                        
                         {isFirebaseConfigured() ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'var(--success-glow)', border: '1px solid var(--success)', borderRadius: '12px', color: 'var(--success)', fontWeight: 'bold' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', boxShadow: '0 0 8px var(--success)', display: 'inline-block' }}></span> 🟢 เชื่อมต่อคลาวด์เรียบร้อย (Firebase Active)
-                          </span>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+                            onClick={() => {
+                              if (confirm('คุณต้องการเปลี่ยนไปใช้โหมดเครื่องเดียว (Local Mode)? ระบบจะโหลดข้อมูลจากในเครื่องบราวเซอร์นี้แทน')) {
+                                localStorage.setItem('flowledger_db_mode', 'local');
+                                window.location.reload();
+                              }
+                            }}
+                          >
+                            ⚠️ สลับไปโหมดเครื่องเดียว (Local Mode)
+                          </button>
                         ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'var(--warning-glow)', border: '1px solid var(--warning)', borderRadius: '12px', color: 'var(--warning)', fontWeight: 'bold' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--warning)', boxShadow: '0 0 8px var(--warning)', display: 'inline-block' }}></span> 🟡 ทำงานในโหมดจำลองเครื่องเดียว (Local Mode)
-                          </span>
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+                            onClick={() => {
+                              localStorage.setItem('flowledger_db_mode', 'cloud');
+                              window.location.reload();
+                            }}
+                          >
+                            ☁️ สลับไปใช้ระบบคลาวด์ (Cloud Mode)
+                          </button>
                         )}
                       </div>
                     </div>

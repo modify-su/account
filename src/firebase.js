@@ -40,6 +40,8 @@ export const getFirebaseConfig = () => {
 
 // Check if Firebase is fully configured
 export const isFirebaseConfigured = () => {
+  const mode = localStorage.getItem("flowledger_db_mode");
+  if (mode === "local") return false;
   return !!getFirebaseConfig();
 };
 
@@ -47,6 +49,7 @@ let app = null;
 let db = null;
 
 export const initFirebase = () => {
+  if (!isFirebaseConfigured()) return null;
   const config = getFirebaseConfig();
   if (!config) return null;
 
@@ -85,10 +88,21 @@ export const subscribeToCollection = (collectionName, onUpdate, fallbackData) =>
   const firebaseInstance = initFirebase();
   const storageKey = getLocalStorageKey(collectionName);
   
+  // Get local items first
+  const localSaved = localStorage.getItem(storageKey);
+  let localList = [];
+  try {
+    localList = localSaved ? JSON.parse(localSaved) : [];
+  } catch (e) {
+    console.error(e);
+  }
+  
+  const migrationKey = `flowledger_migrated_${collectionName}`;
+  const alreadyMigrated = localStorage.getItem(migrationKey) === "true";
+
   if (!firebaseInstance || !firebaseInstance.db) {
     // Fallback: load from localStorage
-    const saved = localStorage.getItem(storageKey);
-    const initial = saved ? JSON.parse(saved) : fallbackData;
+    const initial = localList.length > 0 ? localList : fallbackData;
     onUpdate(initial);
     return () => {}; // Return empty unsubscriber
   }
@@ -103,6 +117,17 @@ export const subscribeToCollection = (collectionName, onUpdate, fallbackData) =>
       list.push({ id: doc.id, ...doc.data() });
     });
     
+    // Auto-migration: If Firestore is empty but we have local data, upload it to the cloud!
+    if (!alreadyMigrated && snapshot.empty && localList.length > 0) {
+      console.log(`Migrating local data for ${collectionName} to Firestore...`);
+      localList.forEach(item => {
+        saveDocToCloud(collectionName, item);
+      });
+      localStorage.setItem(migrationKey, "true");
+      return;
+    }
+    
+    localStorage.setItem(migrationKey, "true");
     onUpdate(list);
     
     // Also mirror to localStorage for offline fallback
