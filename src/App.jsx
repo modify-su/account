@@ -318,8 +318,17 @@ export default function App() {
     monthYear: new Date().toISOString().slice(0, 7), // "YYYY-MM"
     datePaid: new Date().toISOString().split('T')[0],
     bonus: 0,
-    note: ''
+    note: '',
+    payDay: new Date().getDate().toString(),
+    payMonth: (new Date().getMonth() + 1).toString()
   });
+
+  // Salary History Filtering State
+  const [salaryFilterType, setSalaryFilterType] = useState('all'); // all, month, year, custom
+  const [salaryFilterMonth, setSalaryFilterMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [salaryFilterYear, setSalaryFilterYear] = useState(() => new Date().getFullYear().toString()); // YYYY
+  const [salaryFilterStart, setSalaryFilterStart] = useState('');
+  const [salaryFilterEnd, setSalaryFilterEnd] = useState('');
 
   const [showPayslipModal, setShowPayslipModal] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState(null);
@@ -986,13 +995,44 @@ export default function App() {
     }
   };
 
+  const handleDatePaidChange = (newDateVal) => {
+    if (!newDateVal) return;
+    const parts = newDateVal.split('-');
+    if (parts.length === 3) {
+      setPayrollForm(prev => ({
+        ...prev,
+        datePaid: newDateVal,
+        payDay: parseInt(parts[2]).toString(),
+        payMonth: parseInt(parts[1]).toString()
+      }));
+    }
+  };
+
+  const handleDayMonthChange = (field, val) => {
+    setPayrollForm(prev => {
+      const parts = prev.datePaid.split('-');
+      let y = parts[0] || new Date().getFullYear().toString();
+      let m = field === 'payMonth' ? val : (parts[1] || '01');
+      let d = field === 'payDay' ? val : (parts[2] || '01');
+      const datePaid = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      return {
+        ...prev,
+        [field]: val,
+        datePaid
+      };
+    });
+  };
+
   const openProcessPayrollModal = (profile) => {
+    const today = new Date();
     setProcessingSalaryProfile(profile);
     setPayrollForm({
-      monthYear: new Date().toISOString().slice(0, 7),
-      datePaid: new Date().toISOString().split('T')[0],
+      monthYear: today.toISOString().slice(0, 7),
+      datePaid: today.toISOString().split('T')[0],
       bonus: 0,
-      note: ''
+      note: '',
+      payDay: today.getDate().toString(),
+      payMonth: (today.getMonth() + 1).toString()
     });
     setShowProcessPayrollModal(true);
   };
@@ -1020,6 +1060,8 @@ export default function App() {
       bankName: processingSalaryProfile.bankName,
       monthYear: payrollForm.monthYear,
       datePaid: payrollForm.datePaid,
+      payDay: payrollForm.payDay,
+      payMonth: payrollForm.payMonth,
       baseSalary: base,
       allowance: allowance,
       allowances: processingSalaryProfile.allowances || [],
@@ -3558,42 +3600,156 @@ export default function App() {
               </div>
             )}
 
-            {salarySubTab === 'history' && (
-              <div className="glass-card">
-                <div className="user-mgmt-header mb-4">
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>ประวัติการทำรายการจ่ายเงินเดือน</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ประวัติและรายการสลิปเงินเดือนทั้งหมดที่ทำรายการจ่ายสำเร็จแล้ว (คลิกดูสลิปเงินเดือนเพื่อสั่งพิมพ์ได้)</p>
-                </div>
+            {salarySubTab === 'history' && (() => {
+              const filteredPayrollHistory = payrollHistory.filter(h => {
+                if (salaryFilterType === 'month') {
+                  return h.datePaid.startsWith(salaryFilterMonth);
+                }
+                if (salaryFilterType === 'year') {
+                  return h.datePaid.startsWith(salaryFilterYear);
+                }
+                if (salaryFilterType === 'custom') {
+                  if (salaryFilterStart && h.datePaid < salaryFilterStart) return false;
+                  if (salaryFilterEnd && h.datePaid > salaryFilterEnd) return false;
+                  return true;
+                }
+                return true;
+              });
 
-                <div className="table-container">
-                  <table className="custom-table">
-                    <thead>
-                      <tr>
-                        <th>วันที่จ่ายเงิน</th>
-                        <th>รอบเงินเดือน</th>
-                        <th>ชื่อพนักงาน</th>
-                        <th>ตำแหน่ง</th>
-                        <th className="text-right">ยอดรับจริงสุทธิ</th>
-                        <th>วิธีรับเงิน / ธนาคาร</th>
-                        <th>สถานะการโอน</th>
-                        <th className="text-center" style={{ width: '220px' }}>การจัดการ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payrollHistory.length > 0 ? (
-                        payrollHistory.map(h => (
-                          <tr key={h.id}>
-                            <td><code>{h.datePaid}</code></td>
-                            <td className="font-semibold">{h.monthYear}</td>
-                            <td className="font-semibold">{h.employeeName}</td>
-                            <td><span className="badge badge-secondary">{h.employeeRole}</span></td>
-                            <td className="text-right font-bold text-success">฿{h.netPaid.toLocaleString()}</td>
-                            <td>
-                              <span style={{ fontSize: '0.78rem' }}>
-                                🏦 {h.bankName || '-'}<br />
-                                <span className="text-muted">{h.bankAccount || '-'}</span>
-                              </span>
-                            </td>
+              return (
+                <div className="glass-card">
+                  <div className="user-mgmt-header mb-4">
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>ประวัติการทำรายการจ่ายเงินเดือน</h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ประวัติและรายการสลิปเงินเดือนทั้งหมดที่ทำรายการจ่ายสำเร็จแล้ว (คลิกดูสลิปเงินเดือนเพื่อสั่งพิมพ์ได้)</p>
+                  </div>
+
+                  {/* Filter controls */}
+                  <div className="filter-bar mb-4" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', padding: '1rem', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)', alignItems: 'center' }}>
+                    <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className="form-label" style={{ margin: 0, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>สรุปยอดเวลา:</span>
+                      <select 
+                        className="form-select" 
+                        value={salaryFilterType} 
+                        onChange={(e) => setSalaryFilterType(e.target.value)}
+                        style={{ width: '130px', padding: '0.4rem' }}
+                      >
+                        <option value="all">ทั้งหมด</option>
+                        <option value="month">รายเดือน</option>
+                        <option value="year">รายปี</option>
+                        <option value="custom">กำหนดเอง</option>
+                      </select>
+                    </div>
+
+                    {salaryFilterType === 'month' && (
+                      <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className="form-label" style={{ margin: 0, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>เลือกเดือน:</span>
+                        <input 
+                          type="month" 
+                          className="form-input" 
+                          value={salaryFilterMonth} 
+                          onChange={(e) => setSalaryFilterMonth(e.target.value)}
+                          style={{ width: '160px', padding: '0.4rem' }}
+                        />
+                      </div>
+                    )}
+
+                    {salaryFilterType === 'year' && (
+                      <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className="form-label" style={{ margin: 0, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>ระบุปี (ค.ศ.):</span>
+                        <input 
+                          type="number" 
+                          className="form-input" 
+                          placeholder="เช่น 2026"
+                          value={salaryFilterYear} 
+                          onChange={(e) => setSalaryFilterYear(e.target.value)}
+                          style={{ width: '100px', padding: '0.4rem' }}
+                        />
+                      </div>
+                    )}
+
+                    {salaryFilterType === 'custom' && (
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span className="form-label" style={{ margin: 0, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>เริ่มต้น:</span>
+                          <input 
+                            type="date" 
+                            className="form-input" 
+                            value={salaryFilterStart} 
+                            onChange={(e) => setSalaryFilterStart(e.target.value)}
+                            style={{ width: '150px', padding: '0.4rem' }}
+                          />
+                        </div>
+                        <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span className="form-label" style={{ margin: 0, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>สิ้นสุด:</span>
+                          <input 
+                            type="date" 
+                            className="form-input" 
+                            value={salaryFilterEnd} 
+                            onChange={(e) => setSalaryFilterEnd(e.target.value)}
+                            style={{ width: '150px', padding: '0.4rem' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="stats-grid mb-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
+                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>รายการโอนเงิน</span>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--primary)' }}>
+                        {filteredPayrollHistory.length} รายการ
+                      </h3>
+                    </div>
+                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
+                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>จ่ายเงินเดือนสุทธิรวม</span>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--success)' }}>
+                        ฿{filteredPayrollHistory.reduce((sum, h) => sum + h.netPaid, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </h3>
+                    </div>
+                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
+                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>ประกันสังคมรวม</span>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--warning)' }}>
+                        ฿{filteredPayrollHistory.reduce((sum, h) => sum + h.deductionSocial, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </h3>
+                    </div>
+                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
+                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>ภาษี ณ ที่จ่ายรวม</span>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--warning)' }}>
+                        ฿{filteredPayrollHistory.reduce((sum, h) => sum + h.deductionTax, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="table-container">
+                    <table className="custom-table">
+                      <thead>
+                        <tr>
+                          <th>วันที่จ่ายเงิน</th>
+                          <th>รอบเงินเดือน</th>
+                          <th>ชื่อพนักงาน</th>
+                          <th>ตำแหน่ง</th>
+                          <th className="text-right">ยอดรับจริงสุทธิ</th>
+                          <th>วิธีรับเงิน / ธนาคาร</th>
+                          <th>สถานะการโอน</th>
+                          <th className="text-center" style={{ width: '220px' }}>การจัดการ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPayrollHistory.length > 0 ? (
+                          filteredPayrollHistory.map(h => (
+                            <tr key={h.id}>
+                              <td><code>{h.datePaid}</code></td>
+                              <td className="font-semibold">{h.monthYear}</td>
+                              <td className="font-semibold">{h.employeeName}</td>
+                              <td><span className="badge badge-secondary">{h.employeeRole}</span></td>
+                              <td className="text-right font-bold text-success">฿{h.netPaid.toLocaleString()}</td>
+                              <td>
+                                <span style={{ fontSize: '0.78rem' }}>
+                                  🏦 {h.bankName || '-'}<br />
+                                  <span className="text-muted">{h.bankAccount || '-'}</span>
+                                </span>
+                              </td>
                             <td>
                               <span className="badge badge-income" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                                 🟢 สำเร็จ (Paid)
@@ -3630,7 +3786,8 @@ export default function App() {
                   </table>
                 </div>
               </div>
-            )}
+            );
+          })()}
 
             {salarySubTab === 'profiles' && (
               <div className="glass-card">
@@ -5292,14 +5449,54 @@ export default function App() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">วันที่จ่าย (Payment Date)</label>
+                    <label className="form-label">วันที่จ่ายเงิน (Calendar)</label>
                     <input 
                       type="date" 
                       className="form-input" 
                       required 
                       value={payrollForm.datePaid}
-                      onChange={(e) => setPayrollForm(prev => ({ ...prev, datePaid: e.target.value }))}
+                      onChange={(e) => handleDatePaidChange(e.target.value)}
                     />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">วันจ่าย (Day)</label>
+                    <select
+                      className="form-select"
+                      value={payrollForm.payDay}
+                      onChange={(e) => handleDayMonthChange('payDay', e.target.value)}
+                    >
+                      {Array.from({ length: 31 }, (_, i) => (
+                        <option key={i + 1} value={String(i + 1)}>{i + 1}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">เดือนที่จ่าย (Month)</label>
+                    <select
+                      className="form-select"
+                      value={payrollForm.payMonth}
+                      onChange={(e) => handleDayMonthChange('payMonth', e.target.value)}
+                    >
+                      {[
+                        { val: '1', label: 'มกราคม' },
+                        { val: '2', label: 'กุมภาพันธ์' },
+                        { val: '3', label: 'มีนาคม' },
+                        { val: '4', label: 'เมษายน' },
+                        { val: '5', label: 'พฤษภาคม' },
+                        { val: '6', label: 'มิถุนายน' },
+                        { val: '7', label: 'กรกฎาคม' },
+                        { val: '8', label: 'สิงหาคม' },
+                        { val: '9', label: 'กันยายน' },
+                        { val: '10', label: 'ตุลาคม' },
+                        { val: '11', label: 'พฤศจิกายน' },
+                        { val: '12', label: 'ธันวาคม' }
+                      ].map(item => (
+                        <option key={item.val} value={item.val}>{item.label}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
