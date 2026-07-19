@@ -11,12 +11,12 @@ import {
 // Default Hardcoded Firebase Configuration Fallback
 // วางค่า Firebase Config ของคุณที่นี่เพื่อให้แอปเชื่อมต่ออัตโนมัติทุกอุปกรณ์โดยไม่ต้องตั้งค่าในบราวเซอร์
 const DEFAULT_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyYourApiKeyHere...",
+  authDomain: "your-app-domain.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-app-domain.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:1234567890:web:abcdef123456"
 };
 
 // Helper to retrieve firebase config from settings/localStorage
