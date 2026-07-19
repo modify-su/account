@@ -441,6 +441,27 @@ export default function App() {
     };
   }, []);
 
+  // Handle Quick Connect via QR code/link query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const encodedConfig = params.get('fb_config');
+    if (encodedConfig) {
+      try {
+        const decoded = atob(encodedConfig);
+        const parsed = JSON.parse(decoded);
+        if (parsed.apiKey && parsed.projectId) {
+          localStorage.setItem("flowledger_firebase_config", decoded);
+          // Remove the query parameter from the URL bar to clean up
+          window.history.replaceState({}, document.title, window.location.pathname);
+          alert("✨ เชื่อมต่อฐานข้อมูลคลาวด์จากลิงก์แชร์อัตโนมัติสำเร็จ!");
+          window.location.reload();
+        }
+      } catch (e) {
+        console.error("Failed to parse quick connect config:", e);
+      }
+    }
+  }, []);
+
   // Sync session and settings to localStorage
   useEffect(() => {
     localStorage.setItem('current_user', currentUser ? JSON.stringify(currentUser) : '');
@@ -4175,6 +4196,34 @@ export default function App() {
                                 <p style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
                                   ข้อมูลรายรับ-รายจ่าย ใบกำกับภาษี บิล คลังสินค้า และผู้ใช้ทั้งหมดกำลังซิงค์เข้าฐานข้อมูลกลาง Firebase แบบเรียลไทม์ข้ามอุปกรณ์ของคุณอย่างปลอดภัย
                                 </p>
+                                
+                                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed var(--border-color)', textAlign: 'center' }}>
+                                  <strong style={{ fontSize: '0.82rem', display: 'block', marginBottom: '0.5rem', color: 'var(--primary)' }}>
+                                    📲 เชื่อมโยงอุปกรณ์ภายนอกด่วน (Quick-Connect QR)
+                                  </strong>
+                                  <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.4' }}>
+                                    ใช้กล้องมือถือหรือไอแพดสแกนคิวอาร์โค้ดนี้ เพื่อแชร์การเชื่อมต่อและใช้งานร่วมกันได้ทันที
+                                  </p>
+                                  <div style={{ display: 'inline-block', padding: '10px', backgroundColor: '#ffffff', borderRadius: '8px', marginBottom: '0.5rem' }}>
+                                    <img 
+                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+                                        `${window.location.origin}${window.location.pathname}?fb_config=${btoa(localStorage.getItem('flowledger_firebase_config') || '')}`
+                                      )}`}
+                                      alt="Quick Connect QR Code"
+                                      style={{ width: '120px', height: '120px', display: 'block' }}
+                                    />
+                                  </div>
+                                  <div style={{ fontSize: '0.72rem' }}>
+                                    <a 
+                                      href={`${window.location.origin}${window.location.pathname}?fb_config=${btoa(localStorage.getItem('flowledger_firebase_config') || '')}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      style={{ color: 'var(--primary)', textDecoration: 'underline', fontWeight: 'bold' }}
+                                    >
+                                      🔗 คัดลอกลิงก์ส่งต่อ
+                                    </a>
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <div style={{ padding: '1.25rem', backgroundColor: 'var(--warning-glow)', border: '1px solid var(--warning)', borderRadius: '8px', color: 'var(--text-main)' }}>
