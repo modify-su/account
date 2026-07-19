@@ -2492,10 +2492,19 @@ export default function App() {
               </div>
               <div className="filter-bar" style={{ margin: 0 }}>
                 <select className="form-select" value={filterTime} onChange={(e) => setFilterTime(e.target.value)} style={{ width: '150px' }}>
+                  <option value="all">ทั้งหมด</option>
                   <option value="week">สัปดาห์นี้</option>
                   <option value="month">เดือนนี้</option>
                   <option value="year">ปีนี้</option>
+                  <option value="custom">กำหนดเอง (Custom)</option>
                 </select>
+                {filterTime === 'custom' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input type="date" className="form-input" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ width: '135px', padding: '0.45rem' }} />
+                    <span style={{ color: 'var(--text-muted)' }}>ถึง</span>
+                    <input type="date" className="form-input" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ width: '135px', padding: '0.45rem' }} />
+                  </div>
+                )}
                 <button className="btn btn-primary" onClick={() => {
                   setTxForm({
                     type: 'expense',
@@ -2586,21 +2595,30 @@ export default function App() {
                 </div>
                 
                 {/* SVG Visualizer Chart */}
-                <div className="svg-chart-container">
+                <div className="svg-chart-container" style={{ position: 'relative' }}>
                   {filteredTxs.length > 1 ? (
-                    <svg width="100%" height="100%" viewBox="0 0 500 200" preserveAspectRatio="none">
-                      <line x1="30" y1="30" x2="470" y2="30" className="chart-grid-line" />
-                      <line x1="30" y1="85" x2="470" y2="85" className="chart-grid-line" />
-                      <line x1="30" y1="140" x2="470" y2="140" className="chart-grid-line" />
-                      <line x1="30" y1="170" x2="470" y2="170" className="chart-axis" />
+                    <>
+                      {/* Dynamic Y-Axis Labels in HTML (to prevent horizontal stretching) */}
+                      <div style={{ position: 'absolute', left: '8px', top: '15%', transform: 'translateY(-50%)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600', pointerEvents: 'none', zIndex: 5 }}>
+                        ฿{Math.round(chartMaxVal).toLocaleString('th-TH')}
+                      </div>
+                      <div style={{ position: 'absolute', left: '8px', top: '42.5%', transform: 'translateY(-50%)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600', pointerEvents: 'none', zIndex: 5 }}>
+                        ฿{Math.round(chartMaxVal / 2).toLocaleString('th-TH')}
+                      </div>
+                      <div style={{ position: 'absolute', left: '8px', top: '85%', transform: 'translateY(-50%)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600', pointerEvents: 'none', zIndex: 5 }}>
+                        0.00
+                      </div>
 
-                      <path d={generateLineChartPath('income')} className="chart-line-income" />
-                      <path d={generateLineChartPath('expense')} className="chart-line-expense" />
+                      <svg width="100%" height="100%" viewBox="0 0 500 200" preserveAspectRatio="none">
+                        <line x1="30" y1="30" x2="470" y2="30" className="chart-grid-line" />
+                        <line x1="30" y1="85" x2="470" y2="85" className="chart-grid-line" />
+                        <line x1="30" y1="140" x2="470" y2="140" className="chart-grid-line" />
+                        <line x1="30" y1="170" x2="470" y2="170" className="chart-axis" />
 
-                      <text x="5" y="35" className="chart-text">฿{Math.round(chartMaxVal).toLocaleString('th-TH')}</text>
-                      <text x="5" y="100" className="chart-text">฿{Math.round(chartMaxVal / 2).toLocaleString('th-TH')}</text>
-                      <text x="5" y="170" className="chart-text">0.00</text>
-                    </svg>
+                        <path d={generateLineChartPath('income')} className="chart-line-income" />
+                        <path d={generateLineChartPath('expense')} className="chart-line-expense" />
+                      </svg>
+                    </>
                   ) : (
                     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                       กรุณาเพิ่มรายการข้อมูลการเงินอย่างน้อย 2 รายการเพื่อแสดงกราฟ
