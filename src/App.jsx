@@ -2372,6 +2372,18 @@ export default function App() {
             )}
           </div>
           <span className="logo-text">{settings.appName || 'FlowLedger Pro'}</span>
+          <span 
+            style={{ 
+              width: '8px', 
+              height: '8px', 
+              borderRadius: '50%', 
+              backgroundColor: isFirebaseConfigured() ? 'var(--success)' : 'var(--warning)', 
+              boxShadow: isFirebaseConfigured() ? '0 0 8px var(--success)' : '0 0 8px var(--warning)',
+              marginLeft: 'auto',
+              flexShrink: 0
+            }} 
+            title={isFirebaseConfigured() ? 'ระบบเชื่อมต่อคลาวด์เรียบร้อย (Firebase Active)' : 'ใช้งานในโหมดเครื่องเดียว (Local Mode)'}
+          />
         </div>
 
         <nav className="nav-menu">
@@ -4125,128 +4137,20 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Firebase Cloud Firestore Integration */}
+                    {/* Firebase Cloud Firestore Integration - Simplified Status */}
                     <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '2rem', paddingTop: '2rem' }}>
-                      <h3 className="settings-section-title">☁️ Firebase Cloud Database Integration</h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                        เชื่อมต่อ FlowLedger Pro เข้ากับคลาวด์ฐานข้อมูล Firestore บน Google Cloud Platform ของคุณจริง ๆ 
-                        เพื่อให้ระบบเก็บข้อมูลได้อย่างคงทน ป้องกันข้อมูลสูญหาย และเปิดใช้ระบบซิงค์ข้อมูลแบบเรียลไทม์ระหว่างพนักงานหลายเครื่องพร้อมกัน
-                      </p>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', alignItems: 'start' }}>
-                        <div>
-                          <div className="form-group">
-                            <label className="form-label">
-                              Firebase Configuration JSON (คัดลอกจาก Firebase Console)
-                            </label>
-                            <textarea 
-                              rows="8"
-                              className="form-textarea" 
-                              style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
-                              placeholder={`{
-  "apiKey": "AIzaSy...",
-  "authDomain": "your-app.firebaseapp.com",
-  "projectId": "your-app",
-  "storageBucket": "your-app.appspot.com",
-  "messagingSenderId": "123456789",
-  "appId": "1:123456:web:abcd"
-}`}
-                              value={firebaseConfigInput}
-                              onChange={(e) => setFirebaseConfigInput(e.target.value)}
-                            />
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                            <button className="btn btn-primary" onClick={handleSaveFirebaseConfig}>
-                              เชื่อมต่อฐานข้อมูลคลาวด์
-                            </button>
-                            <button 
-                              type="button" 
-                              className="btn btn-secondary" 
-                              onClick={() => {
-                                const template = {
-                                  apiKey: "AIzaSyYourKeyHere",
-                                  authDomain: "your-project-id.firebaseapp.com",
-                                  projectId: "your-project-id",
-                                  storageBucket: "your-project-id.appspot.com",
-                                  messagingSenderId: "123456789012",
-                                  appId: "1:123456789012:web:abcdef123456"
-                                };
-                                setFirebaseConfigInput(JSON.stringify(template, null, 2));
-                              }}
-                            >
-                              📋 ใช้โครงสร้าง JSON ตัวอย่าง
-                            </button>
-                            {isFirebaseConfigured() && (
-                              <button className="btn btn-danger" onClick={handleDisconnectFirebase}>
-                                ตัดการเชื่อมต่อคลาวด์
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="form-group">
-                            <label className="form-label">สถานะการทำงานปัจจุบัน</label>
-                            {isFirebaseConfigured() ? (
-                              <div style={{ padding: '1.25rem', backgroundColor: 'var(--success-glow)', border: '1px solid var(--success)', borderRadius: '8px', color: 'var(--text-main)' }}>
-                                <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)' }}>
-                                  🟢 กำลังใช้งานคลาวด์ (Firestore Active)
-                                </div>
-                                <p style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                                  ข้อมูลรายรับ-รายจ่าย ใบกำกับภาษี บิล คลังสินค้า และผู้ใช้ทั้งหมดกำลังซิงค์เข้าฐานข้อมูลกลาง Firebase แบบเรียลไทม์ข้ามอุปกรณ์ของคุณอย่างปลอดภัย
-                                </p>
-                                
-                                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed var(--border-color)', textAlign: 'center' }}>
-                                  <strong style={{ fontSize: '0.82rem', display: 'block', marginBottom: '0.5rem', color: 'var(--primary)' }}>
-                                    📲 เชื่อมโยงอุปกรณ์ภายนอกด่วน (Quick-Connect QR)
-                                  </strong>
-                                  <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.4' }}>
-                                    ใช้กล้องมือถือหรือไอแพดสแกนคิวอาร์โค้ดนี้ เพื่อแชร์การเชื่อมต่อและใช้งานร่วมกันได้ทันที
-                                  </p>
-                                  <div style={{ display: 'inline-block', padding: '10px', backgroundColor: '#ffffff', borderRadius: '8px', marginBottom: '0.5rem' }}>
-                                    <img 
-                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
-                                        `${window.location.origin}${window.location.pathname}?fb_config=${btoa(localStorage.getItem('flowledger_firebase_config') || '')}`
-                                      )}`}
-                                      alt="Quick Connect QR Code"
-                                      style={{ width: '120px', height: '120px', display: 'block' }}
-                                    />
-                                  </div>
-                                  <div style={{ fontSize: '0.72rem' }}>
-                                    <a 
-                                      href={`${window.location.origin}${window.location.pathname}?fb_config=${btoa(localStorage.getItem('flowledger_firebase_config') || '')}`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      style={{ color: 'var(--primary)', textDecoration: 'underline', fontWeight: 'bold' }}
-                                    >
-                                      🔗 คัดลอกลิงก์ส่งต่อ
-                                    </a>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{ padding: '1.25rem', backgroundColor: 'var(--warning-glow)', border: '1px solid var(--warning)', borderRadius: '8px', color: 'var(--text-main)' }}>
-                                <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--warning)' }}>
-                                  🟡 ใช้งานในโหมดเครื่องเดียว (Local Mode)
-                                </div>
-                                <p style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                                  ระบบกำลังจัดเก็บข้อมูลจำลองลงในเบราว์เซอร์นี้เท่านั้น (LocalStorage) ข้อมูลอาจสูญหายหากมีการเคลียร์คุกกี้ และจะไม่ซิงค์กับเครื่องอื่น
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div style={{ padding: '1rem', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                            <strong>🛠️ ขั้นตอนเปิดใช้งาน Firebase Free Tier:</strong>
-                            <ol style={{ paddingLeft: '1.2rem', marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                              <li>เปิด <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Firebase Console</a> และสร้างโปรเจกต์ใหม่</li>
-                              <li>กดเพิ่มแอปพลิเคชันเว็บ (Web App `&lt;/&gt;`) และคัดลอกส่วน `firebaseConfig`</li>
-                              <li>สร้างฐานข้อมูล **Cloud Firestore** ในโหมดทดสอบ (Test Mode)</li>
-                              <li>วางโค้ด JSON การตั้งค่าลงในช่องซ้ายมือแล้วกดเชื่อมต่อ!</li>
-                            </ol>
-                          </div>
-                        </div>
+                      <h3 className="settings-section-title">☁️ ฐานข้อมูลคลาวด์ (Database Status)</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)' }}>สถานะการเชื่อมต่อ:</span>
+                        {isFirebaseConfigured() ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'var(--success-glow)', border: '1px solid var(--success)', borderRadius: '12px', color: 'var(--success)', fontWeight: 'bold' }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', boxShadow: '0 0 8px var(--success)', display: 'inline-block' }}></span> 🟢 เชื่อมต่อคลาวด์เรียบร้อย (Firebase Active)
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'var(--warning-glow)', border: '1px solid var(--warning)', borderRadius: '12px', color: 'var(--warning)', fontWeight: 'bold' }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--warning)', boxShadow: '0 0 8px var(--warning)', display: 'inline-block' }}></span> 🟡 ทำงานในโหมดจำลองเครื่องเดียว (Local Mode)
+                          </span>
+                        )}
                       </div>
                     </div>
                     
