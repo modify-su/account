@@ -1769,8 +1769,14 @@ export default function App() {
     const height = 200;
     const padding = 30;
 
+    // หากมีประวัติในระบบแค่วันเดียว ให้วาดเส้นตรงระนาบแนวขวางข้ามกราฟแทน
+    if (dates.length === 1) {
+      const y = height - padding - (dateMap[dates[0]][type] / chartMaxVal) * (height - 2 * padding);
+      return `M ${padding},${y} L ${width - padding},${y}`;
+    }
+
     const points = dates.map((d, index) => {
-      const x = padding + (index / (dates.length - 1 || 1)) * (width - 2 * padding);
+      const x = padding + (index / (dates.length - 1)) * (width - 2 * padding);
       const y = height - padding - (dateMap[d][type] / chartMaxVal) * (height - 2 * padding);
       return `${x},${y}`;
     });
