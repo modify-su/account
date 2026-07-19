@@ -1938,27 +1938,17 @@ export default function App() {
             <LayoutDashboard size={18} />
             <span>{menuNames.dashboard}</span>
           </li>
-          <li className={`nav-item ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => setActiveTab('transactions')}>
-            <Wallet size={18} />
-            <span>{menuNames.transactions}</span>
-          </li>
           <li className={`nav-item ${activeTab === 'pos' ? 'active' : ''}`} onClick={() => setActiveTab('pos')}>
             <ShoppingCart size={18} />
             <span>{menuNames.pos}</span>
           </li>
+          <li className={`nav-item ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => setActiveTab('transactions')}>
+            <Wallet size={18} />
+            <span>{menuNames.transactions}</span>
+          </li>
           <li className={`nav-item ${activeTab === 'invoices' ? 'active' : ''}`} onClick={() => setActiveTab('invoices')}>
             <FileSpreadsheet size={18} />
             <span>{menuNames.invoices}</span>
-          </li>
-          {currentUser.role === 'admin' && (
-            <li className={`nav-item ${activeTab === 'linebot' ? 'active' : ''}`} onClick={() => setActiveTab('linebot')}>
-              <MessageSquare size={18} />
-              <span>{menuNames.linebot}</span>
-            </li>
-          )}
-          <li className={`nav-item ${activeTab === 'dochub' ? 'active' : ''}`} onClick={() => setActiveTab('dochub')}>
-            <Archive size={18} />
-            <span>{menuNames.dochub}</span>
           </li>
           {currentUser.role === 'admin' && (
             <li className={`nav-item ${activeTab === 'salary' ? 'active' : ''}`} onClick={() => setActiveTab('salary')}>
@@ -1966,10 +1956,20 @@ export default function App() {
               <span>{menuNames.salary || 'เงินเดือนพนักงาน'}</span>
             </li>
           )}
+          <li className={`nav-item ${activeTab === 'dochub' ? 'active' : ''}`} onClick={() => setActiveTab('dochub')}>
+            <Archive size={18} />
+            <span>{menuNames.dochub}</span>
+          </li>
           {currentUser.role === 'admin' && (
             <li className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
               <Settings size={18} />
               <span>{menuNames.settings}</span>
+            </li>
+          )}
+          {currentUser.role === 'admin' && (
+            <li className={`nav-item ${activeTab === 'linebot' ? 'active' : ''}`} onClick={() => setActiveTab('linebot')}>
+              <MessageSquare size={18} />
+              <span>{menuNames.linebot}</span>
             </li>
           )}
         </nav>
