@@ -1729,6 +1729,28 @@ export default function App() {
     value: categoriesExpenseMap[cat]
   })).sort((a, b) => b.value - a.value);
 
+  // Calculate dynamic max value for line chart scaling
+  const getChartMaxVal = () => {
+    const list = [...filteredTxs].sort((a, b) => new Date(a.date) - new Date(b.date));
+    if (list.length === 0) return 1000;
+    
+    const dateMap = {};
+    list.forEach(t => {
+      if (!dateMap[t.date]) dateMap[t.date] = { income: 0, expense: 0 };
+      dateMap[t.date][t.type] += t.amount;
+    });
+
+    const dates = Object.keys(dateMap);
+    const values = [];
+    dates.forEach(d => {
+      values.push(dateMap[d].income);
+      values.push(dateMap[d].expense);
+    });
+    return Math.max(...values, 1000);
+  };
+
+  const chartMaxVal = getChartMaxVal();
+
   // SVG Line Chart Coordinate Generator
   const generateLineChartPath = (type) => {
     const list = [...filteredTxs].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -1747,12 +1769,9 @@ export default function App() {
     const height = 200;
     const padding = 30;
 
-    const values = dates.map(d => dateMap[d][type]);
-    const maxVal = Math.max(...values, 1000);
-
     const points = dates.map((d, index) => {
       const x = padding + (index / (dates.length - 1 || 1)) * (width - 2 * padding);
-      const y = height - padding - (dateMap[d][type] / maxVal) * (height - 2 * padding);
+      const y = height - padding - (dateMap[d][type] / chartMaxVal) * (height - 2 * padding);
       return `${x},${y}`;
     });
 
@@ -2578,8 +2597,8 @@ export default function App() {
                       <path d={generateLineChartPath('income')} className="chart-line-income" />
                       <path d={generateLineChartPath('expense')} className="chart-line-expense" />
 
-                      <text x="5" y="35" className="chart-text">สูง</text>
-                      <text x="5" y="100" className="chart-text">กลาง</text>
+                      <text x="5" y="35" className="chart-text">฿{Math.round(chartMaxVal).toLocaleString('th-TH')}</text>
+                      <text x="5" y="100" className="chart-text">฿{Math.round(chartMaxVal / 2).toLocaleString('th-TH')}</text>
                       <text x="5" y="170" className="chart-text">0.00</text>
                     </svg>
                   ) : (
