@@ -870,7 +870,9 @@ export default function App() {
         employeeName: profile.employeeName,
         employeeRole: profile.employeeRole,
         baseSalary: profile.baseSalary,
-        allowance: profile.allowance,
+        allowances: profile.allowances || [
+          { id: 'allow_1', label: 'ค่าเบี้ยเลี้ยง / สวัสดิการสม่ำเสมอ', amount: profile.allowance || 0 }
+        ],
         deductionSocial: profile.deductionSocial,
         deductionTax: profile.deductionTax,
         bankAccount: profile.bankAccount,
@@ -882,7 +884,9 @@ export default function App() {
         employeeName: '',
         employeeRole: '',
         baseSalary: '',
-        allowance: 0,
+        allowances: [
+          { id: 'allow_1', label: 'ค่าเบี้ยเลี้ยง / สวัสดิการสม่ำเสมอ', amount: 0 }
+        ],
         deductionSocial: 750,
         deductionTax: 0,
         bankAccount: '',
@@ -892,10 +896,40 @@ export default function App() {
     setShowSalaryModal(true);
   };
 
+  const addAllowanceRow = () => {
+    setSalaryForm(prev => ({
+      ...prev,
+      allowances: [
+        ...(prev.allowances || []),
+        { id: `allow_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, label: 'ค่าล่วงเวลา (OT)', amount: 0 }
+      ]
+    }));
+  };
+
+  const removeAllowanceRow = (id) => {
+    setSalaryForm(prev => ({
+      ...prev,
+      allowances: (prev.allowances || []).filter(item => item.id !== id)
+    }));
+  };
+
+  const updateAllowanceRow = (id, field, value) => {
+    setSalaryForm(prev => ({
+      ...prev,
+      allowances: (prev.allowances || []).map(item => {
+        if (item.id === id) {
+          return { ...item, [field]: value };
+        }
+        return item;
+      })
+    }));
+  };
+
   const handleSaveSalaryProfile = (e) => {
     e.preventDefault();
     const base = parseFloat(salaryForm.baseSalary);
-    const allow = parseFloat(salaryForm.allowance) || 0;
+    const allowancesList = salaryForm.allowances || [];
+    const totalAllow = allowancesList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
     const soc = parseFloat(salaryForm.deductionSocial) || 0;
     const tax = parseFloat(salaryForm.deductionTax) || 0;
 
@@ -909,7 +943,8 @@ export default function App() {
         ...editingSalary,
         ...salaryForm,
         baseSalary: base,
-        allowance: allow,
+        allowance: totalAllow,
+        allowances: allowancesList,
         deductionSocial: soc,
         deductionTax: tax
       };
@@ -925,7 +960,8 @@ export default function App() {
         employeeName: salaryForm.employeeName.trim(),
         employeeRole: salaryForm.employeeRole.trim() || 'พนักงาน',
         baseSalary: base,
-        allowance: allow,
+        allowance: totalAllow,
+        allowances: allowancesList,
         deductionSocial: soc,
         deductionTax: tax,
         bankAccount: salaryForm.bankAccount.trim(),
@@ -986,6 +1022,7 @@ export default function App() {
       datePaid: payrollForm.datePaid,
       baseSalary: base,
       allowance: allowance,
+      allowances: processingSalaryProfile.allowances || [],
       bonus: bonus,
       deductionSocial: soc,
       deductionTax: tax,
@@ -4651,18 +4688,64 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">ค่าเบี้ยเลี้ยง / สวัสดิการสม่ำเสมอ</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      placeholder="เช่น 1000"
-                      min="0"
-                      value={salaryForm.allowance}
-                      onChange={(e) => setSalaryForm(prev => ({ ...prev, allowance: e.target.value }))}
-                    />
+                <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem', marginBottom: '1.25rem', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <label className="form-label" style={{ margin: 0, fontWeight: '700' }}>รายได้พิเศษและเบี้ยเลี้ยงอื่นๆ</label>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      onClick={addAllowanceRow}
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                    >
+                      ➕ เพิ่มรายการ
+                    </button>
                   </div>
+                  
+                  {salaryForm.allowances && salaryForm.allowances.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {salaryForm.allowances.map((item, idx) => (
+                        <div key={item.id || idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <select
+                            className="form-select"
+                            style={{ flex: 2, padding: '0.45rem' }}
+                            value={item.label}
+                            onChange={(e) => updateAllowanceRow(item.id, 'label', e.target.value)}
+                          >
+                            <option value="ค่าเบี้ยเลี้ยง / สวัสดิการสม่ำเสมอ">ค่าเบี้ยเลี้ยง / สวัสดิการสม่ำเสมอ</option>
+                            <option value="ค่าล่วงเวลา (OT)">ค่าล่วงเวลา (OT)</option>
+                            <option value="เบี้ยขยัน">เบี้ยขยัน</option>
+                            <option value="เงินตกเบิก">เงินตกเบิก</option>
+                            <option value="เบิกค่าสำรองจ่าย">เบิกค่าสำรองจ่าย</option>
+                            <option value="รายได้พิเศษอื่นๆ">อื่น ๆ</option>
+                          </select>
+                          <input
+                            type="number"
+                            className="form-input"
+                            style={{ flex: 1, padding: '0.45rem' }}
+                            placeholder="จำนวนเงิน"
+                            min="0"
+                            value={item.amount}
+                            onChange={(e) => updateAllowanceRow(item.id, 'amount', e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            style={{ padding: '0.45rem', minWidth: '36px', height: '36px', justifyContent: 'center' }}
+                            onClick={() => removeAllowanceRow(item.id)}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.5rem' }}>
+                      ไม่มีการกำหนดรายได้พิเศษเพิ่มเติม
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">ยอดหักประกันสังคมต่อเดือน</label>
                     <input 
@@ -4675,9 +4758,6 @@ export default function App() {
                       onChange={(e) => setSalaryForm(prev => ({ ...prev, deductionSocial: e.target.value }))}
                     />
                   </div>
-                </div>
-
-                <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">หักภาษี ณ ที่จ่ายสะสมเฉลี่ย</label>
                     <input 
@@ -4689,6 +4769,9 @@ export default function App() {
                       onChange={(e) => setSalaryForm(prev => ({ ...prev, deductionTax: e.target.value }))}
                     />
                   </div>
+                </div>
+
+                <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">ช่องทางรับเงิน (ชื่อธนาคาร)</label>
                     <select 
@@ -4704,17 +4787,16 @@ export default function App() {
                       <option value="เงินสด (Cash)">เงินสด (Cash)</option>
                     </select>
                   </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">เลขที่บัญชีธนาคาร</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="เช่น 123-4-56789-0"
-                    value={salaryForm.bankAccount}
-                    onChange={(e) => setSalaryForm(prev => ({ ...prev, bankAccount: e.target.value }))}
-                  />
+                  <div className="form-group">
+                    <label className="form-label">เลขที่บัญชีธนาคาร</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="เช่น 123-4-56789-0"
+                      value={salaryForm.bankAccount}
+                      onChange={(e) => setSalaryForm(prev => ({ ...prev, bankAccount: e.target.value }))}
+                    />
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
@@ -4743,13 +4825,28 @@ export default function App() {
               <div className="modal-body">
                 <div style={{ backgroundColor: 'var(--bg-body)', padding: '1rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid var(--border-color)' }}>
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>สรุปสิทธิ์เงินเดือนพนักงาน</h3>
-                  <div style={{ fontSize: '0.82rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <div><strong>ชื่อ:</strong> {processingSalaryProfile.employeeName}</div>
-                    <div><strong>ตำแหน่ง:</strong> {processingSalaryProfile.employeeRole}</div>
-                    <div><strong>ฐานเงินเดือน:</strong> ฿{processingSalaryProfile.baseSalary.toLocaleString()}</div>
-                    <div><strong>สวัสดิการเบี้ยเลี้ยง:</strong> ฿{processingSalaryProfile.allowance.toLocaleString()}</div>
-                    <div><strong>หักประกันสังคม:</strong> ฿{processingSalaryProfile.deductionSocial.toLocaleString()}</div>
-                    <div><strong>หักภาษี ณ ที่จ่าย:</strong> ฿{processingSalaryProfile.deductionTax.toLocaleString()}</div>
+                  <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                      <div><strong>ชื่อ:</strong> {processingSalaryProfile.employeeName}</div>
+                      <div><strong>ตำแหน่ง:</strong> {processingSalaryProfile.employeeRole}</div>
+                      <div><strong>ฐานเงินเดือน:</strong> ฿{processingSalaryProfile.baseSalary.toLocaleString()}</div>
+                      <div><strong>หักประกันสังคม:</strong> ฿{processingSalaryProfile.deductionSocial.toLocaleString()}</div>
+                      <div><strong>หักภาษี ณ ที่จ่าย:</strong> ฿{processingSalaryProfile.deductionTax.toLocaleString()}</div>
+                      <div><strong>รวมเงินได้พิเศษ:</strong> ฿{processingSalaryProfile.allowance.toLocaleString()}</div>
+                    </div>
+                    {processingSalaryProfile.allowances && processingSalaryProfile.allowances.length > 0 && (
+                      <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <strong style={{ display: 'block', marginBottom: '0.2rem' }}>รายละเอียดรายได้พิเศษ:</strong>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.2rem 1rem', paddingLeft: '0.4rem' }}>
+                          {processingSalaryProfile.allowances.map((item, idx) => (
+                            <React.Fragment key={idx}>
+                              <span>{item.label}:</span>
+                              <span>฿{(parseFloat(item.amount) || 0).toLocaleString()}</span>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4884,11 +4981,22 @@ export default function App() {
                   <td style={{ padding: '0.5rem' }}>เงินเดือนพื้นฐาน (Base Salary)</td>
                   <td style={{ padding: '0.5rem', textAlign: 'right' }}>฿{selectedPayslip.baseSalary.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
                 </tr>
-                {selectedPayslip.allowance > 0 && (
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '0.5rem' }}>ค่าเบี้ยเลี้ยง / สวัสดิการสม่ำเสมอ (Allowance)</td>
-                    <td style={{ padding: '0.5rem', textAlign: 'right' }}>฿{selectedPayslip.allowance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                  </tr>
+                {selectedPayslip.allowances && selectedPayslip.allowances.length > 0 ? (
+                  selectedPayslip.allowances.map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '0.5rem' }}>{item.label}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                        ฿{(parseFloat(item.amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  selectedPayslip.allowance > 0 && (
+                    <tr style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '0.5rem' }}>ค่าเบี้ยเลี้ยง / สวัสดิการสม่ำเสมอ (Allowance)</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>฿{selectedPayslip.allowance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  )
                 )}
                 {selectedPayslip.bonus > 0 && (
                   <tr style={{ borderBottom: '1px solid #eee' }}>
