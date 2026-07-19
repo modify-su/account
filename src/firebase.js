@@ -11,12 +11,12 @@ import {
 // Default Hardcoded Firebase Configuration Fallback
 // วางค่า Firebase Config ของคุณที่นี่เพื่อให้แอปเชื่อมต่ออัตโนมัติทุกอุปกรณ์โดยไม่ต้องตั้งค่าในบราวเซอร์
 const DEFAULT_CONFIG = {
-  apiKey: "AIzaSyYourApiKeyHere...",
-  authDomain: "your-app-domain.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-app-domain.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef123456"
+  apiKey: "AIzaSyC4Rd2_X9W1M9AniLtXGqZwosHxhHBtujs",
+  authDomain: "smart-76d41.firebaseapp.com",
+  projectId: "smart-76d41",
+  storageBucket: "smart-76d41.firebasestorage.app",
+  messagingSenderId: "69694842557",
+  appId: "1:69694842557:web:f9a5c31e598f0e63571414"
 };
 
 // Helper to retrieve firebase config from settings/localStorage
