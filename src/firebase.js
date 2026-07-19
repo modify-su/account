@@ -117,14 +117,17 @@ export const subscribeToCollection = (collectionName, onUpdate, fallbackData) =>
       list.push({ id: doc.id, ...doc.data() });
     });
     
-    // Auto-migration: If Firestore is empty but we have local data, upload it to the cloud!
-    if (!alreadyMigrated && snapshot.empty && localList.length > 0) {
-      console.log(`Migrating local data for ${collectionName} to Firestore...`);
-      localList.forEach(item => {
-        saveDocToCloud(collectionName, item);
-      });
-      localStorage.setItem(migrationKey, "true");
-      return;
+    // Auto-migration & Seeding: If Firestore is empty, upload local data or seed defaults (for users)
+    if (!alreadyMigrated && snapshot.empty) {
+      const listToUpload = localList.length > 0 ? localList : (collectionName === 'users' ? fallbackData : []);
+      if (listToUpload.length > 0) {
+        console.log(`Migrating/Seeding data for ${collectionName} to Firestore...`);
+        listToUpload.forEach(item => {
+          saveDocToCloud(collectionName, item);
+        });
+        localStorage.setItem(migrationKey, "true");
+        return;
+      }
     }
     
     localStorage.setItem(migrationKey, "true");
