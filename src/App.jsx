@@ -995,6 +995,34 @@ export default function App() {
     }
   };
 
+  const handleDeleteDocument = (id) => {
+    if (currentUser.role !== 'admin') {
+      alert('ขออภัย คุณไม่มีสิทธิ์ในการลบเอกสารนี้');
+      return;
+    }
+    if (confirm('คุณต้องการลบเอกสารนี้ออกจากระบบใช่หรือไม่?')) {
+      if (isFirebaseConfigured()) {
+        deleteDocFromCloud('documents', id);
+      } else {
+        setDocuments(prev => prev.filter(doc => doc.id !== id));
+      }
+    }
+  };
+
+  const handleClearAllDocuments = () => {
+    if (currentUser.role !== 'admin') {
+      alert('ขออภัย คุณไม่มีสิทธิ์ในการล้างคลังเอกสาร');
+      return;
+    }
+    if (confirm('⚠️ คำเตือน: คุณต้องการล้างคลังเอกสารทั้งหมดใช่หรือไม่? การกระทำนี้ไม่สามารถเรียกคืนได้!')) {
+      if (isFirebaseConfigured()) {
+        documents.forEach(doc => deleteDocFromCloud('documents', doc.id));
+      } else {
+        setDocuments([]);
+      }
+    }
+  };
+
   const handleDatePaidChange = (newDateVal) => {
     if (!newDateVal) return;
     const parts = newDateVal.split('-');
@@ -3430,8 +3458,19 @@ export default function App() {
                   </select>
                 </div>
 
-                <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  พบเอกสารทั้งหมด <strong>{filteredDocs.length} ไฟล์</strong>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    พบเอกสารทั้งหมด <strong>{filteredDocs.length} ไฟล์</strong>
+                  </div>
+                  {currentUser.role === 'admin' && filteredDocs.length > 0 && (
+                    <button 
+                      className="btn btn-danger" 
+                      onClick={handleClearAllDocuments}
+                      style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                    >
+                      🗑️ ล้างคลังเอกสาร
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -3469,6 +3508,11 @@ export default function App() {
                       <button className="btn btn-secondary" onClick={() => setSelectedDoc(doc)} style={{ flexGrow: 1, padding: '0.4rem', justifyContent: 'center' }}>
                         ดูรูปบิลสลิป
                       </button>
+                      {currentUser.role === 'admin' && (
+                        <button className="btn btn-danger" onClick={() => handleDeleteDocument(doc.id)} style={{ padding: '0.4rem', minWidth: '36px', justifyContent: 'center' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
