@@ -351,6 +351,7 @@ export default function App() {
   const [filterSearch, setFilterSearch] = useState('');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   // Invoice Builder state
   const [invoiceForm, setInvoiceForm] = useState({
@@ -1751,37 +1752,32 @@ export default function App() {
 
   const chartMaxVal = getChartMaxVal();
 
-  // SVG Line Chart Coordinate Generator
-  const generateLineChartPath = (type) => {
-    const list = [...filteredTxs].sort((a, b) => new Date(a.date) - new Date(b.date));
-    if (list.length === 0) return '';
-    
-    const dateMap = {};
-    list.forEach(t => {
-      if (!dateMap[t.date]) dateMap[t.date] = { income: 0, expense: 0 };
-      dateMap[t.date][t.type] += t.amount;
-    });
+  // SVG Curved Spline Path Generator (Catmull-Rom style smoothing)
+  const getCurvePath = (points) => {
+    if (points.length === 0) return '';
+    if (points.length === 1) return `M ${points[0].x},${points[0].y}`;
+    if (points.length === 2) return `M ${points[0].x},${points[0].y} L ${points[1].x},${points[1].y}`;
 
-    const dates = Object.keys(dateMap).sort();
-    if (dates.length === 0) return '';
+    let path = `M ${points[0].x},${points[0].y}`;
+    const smoothing = 0.15; // Smooth tension control
 
-    const width = 500;
-    const height = 200;
-    const padding = 30;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
 
-    // หากมีประวัติในระบบแค่วันเดียว ให้วาดเส้นตรงระนาบแนวขวางข้ามกราฟแทน
-    if (dates.length === 1) {
-      const y = height - padding - (dateMap[dates[0]][type] / chartMaxVal) * (height - 2 * padding);
-      return `M ${padding},${y} L ${width - padding},${y}`;
+      const pPrev = points[i - 1] || p0;
+      const pNext = points[i + 2] || p1;
+
+      // Calculate control points
+      const cp1x = p0.x + (p1.x - pPrev.x) * smoothing;
+      const cp1y = p0.y + (p1.y - pPrev.y) * smoothing;
+
+      const cp2x = p1.x - (pNext.x - p0.x) * smoothing;
+      const cp2y = p1.y - (pNext.y - p0.y) * smoothing;
+
+      path += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p1.x},${p1.y}`;
     }
-
-    const points = dates.map((d, index) => {
-      const x = padding + (index / (dates.length - 1)) * (width - 2 * padding);
-      const y = height - padding - (dateMap[d][type] / chartMaxVal) * (height - 2 * padding);
-      return `${x},${y}`;
-    });
-
-    return `M ${points.join(' L ')}`;
+    return path;
   };
 
   // --- LINE BOT INTERACTIVE SIMULATOR ---
@@ -2497,18 +2493,51 @@ export default function App() {
                 <p>รายงานผลรายรับรายจ่ายและภาษีแบบเรียลไทม์</p>
               </div>
               <div className="filter-bar" style={{ margin: 0 }}>
-                <select className="form-select" value={filterTime} onChange={(e) => setFilterTime(e.target.value)} style={{ width: '150px' }}>
-                  <option value="all">ทั้งหมด</option>
-                  <option value="week">สัปดาห์นี้</option>
-                  <option value="month">เดือนนี้</option>
-                  <option value="year">ปีนี้</option>
-                  <option value="custom">กำหนดเอง (Custom)</option>
-                </select>
+                <div className="filter-pill-container" style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'rgba(255,255,255,0.03)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', alignItems: 'center' }}>
+                  {[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'week', label: 'สัปดาห์นี้' },
+                    { value: 'month', label: 'เดือนนี้' },
+                    { value: 'year', label: 'ปีนี้' },
+                    { value: 'custom', label: 'กำหนดเอง' }
+                  ].map(pill => (
+                    <button
+                      key={pill.value}
+                      className={`filter-pill-btn ${filterTime === pill.value ? 'active' : ''}`}
+                      onClick={() => setFilterTime(pill.value)}
+                      style={{
+                        padding: '0.45rem 0.9rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: 'none',
+                        fontSize: '0.82rem',
+                        fontWeight: '700',
+                        backgroundColor: filterTime === pill.value ? 'var(--primary)' : 'transparent',
+                        color: filterTime === pill.value ? '#ffffff' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (filterTime !== pill.value) {
+                          e.target.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                          e.target.style.color = 'var(--text-main)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (filterTime !== pill.value) {
+                          e.target.style.backgroundColor = 'transparent';
+                          e.target.style.color = 'var(--text-muted)';
+                        }
+                      }}
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
+                </div>
                 {filterTime === 'custom' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <input type="date" className="form-input" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ width: '135px', padding: '0.45rem' }} />
-                    <span style={{ color: 'var(--text-muted)' }}>ถึง</span>
-                    <input type="date" className="form-input" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ width: '135px', padding: '0.45rem' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', animation: 'fadeIn 0.25s ease-out' }}>
+                    <input type="date" className="form-input" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ width: '135px', padding: '0.45rem', fontSize: '0.85rem' }} />
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>ถึง</span>
+                    <input type="date" className="form-input" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ width: '135px', padding: '0.45rem', fontSize: '0.85rem' }} />
                   </div>
                 )}
                 <button className="btn btn-primary" onClick={() => {
@@ -2601,35 +2630,224 @@ export default function App() {
                 </div>
                 
                 {/* SVG Visualizer Chart */}
-                <div className="svg-chart-container" style={{ position: 'relative' }}>
-                  {filteredTxs.length > 1 ? (
-                    <>
-                      {/* Dynamic Y-Axis Labels in HTML (to prevent horizontal stretching) */}
-                      <div style={{ position: 'absolute', left: '8px', top: '15%', transform: 'translateY(-50%)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600', pointerEvents: 'none', zIndex: 5 }}>
-                        ฿{Math.round(chartMaxVal).toLocaleString('th-TH')}
-                      </div>
-                      <div style={{ position: 'absolute', left: '8px', top: '42.5%', transform: 'translateY(-50%)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600', pointerEvents: 'none', zIndex: 5 }}>
-                        ฿{Math.round(chartMaxVal / 2).toLocaleString('th-TH')}
-                      </div>
-                      <div style={{ position: 'absolute', left: '8px', top: '85%', transform: 'translateY(-50%)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600', pointerEvents: 'none', zIndex: 5 }}>
-                        0.00
-                      </div>
+                {/* SVG Visualizer Chart */}
+                <div className="svg-chart-container" style={{ position: 'relative', height: '270px' }}>
+                  {(() => {
+                    const chartTxs = [...filteredTxs].sort((a, b) => new Date(a.date) - new Date(b.date));
+                    const dateMap = {};
+                    chartTxs.forEach(t => {
+                      if (!dateMap[t.date]) dateMap[t.date] = { income: 0, expense: 0 };
+                      dateMap[t.date][t.type] += t.amount;
+                    });
+                    const dates = Object.keys(dateMap).sort();
 
-                      <svg width="100%" height="100%" viewBox="0 0 500 200" preserveAspectRatio="none">
-                        <line x1="30" y1="30" x2="470" y2="30" className="chart-grid-line" />
-                        <line x1="30" y1="85" x2="470" y2="85" className="chart-grid-line" />
-                        <line x1="30" y1="140" x2="470" y2="140" className="chart-grid-line" />
-                        <line x1="30" y1="170" x2="470" y2="170" className="chart-axis" />
+                    if (dates.length === 0) {
+                      return (
+                        <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                          กรุณาบันทึกข้อมูลการเงินเพื่อแสดงกราฟ
+                        </div>
+                      );
+                    }
 
-                        <path d={generateLineChartPath('income')} className="chart-line-income" />
-                        <path d={generateLineChartPath('expense')} className="chart-line-expense" />
+                    // Compute points coordinates inside SVG viewBox 540x220
+                    // grid x ranges from 55 to 520 (width = 465)
+                    // grid y ranges from 20 to 175 (height = 155)
+                    const getPoints = (type) => {
+                      if (dates.length === 1) {
+                        const y = 175 - (dateMap[dates[0]][type] / chartMaxVal) * 155;
+                        return [
+                          { x: 55, y, date: dates[0], value: dateMap[dates[0]][type] },
+                          { x: 520, y, date: dates[0], value: dateMap[dates[0]][type] }
+                        ];
+                      }
+                      return dates.map((d, index) => {
+                        const x = 55 + (index / (dates.length - 1)) * 465;
+                        const y = 175 - (dateMap[d][type] / chartMaxVal) * 155;
+                        return { x, y, date: d, value: dateMap[d][type], index };
+                      });
+                    };
+
+                    const incomePoints = getPoints('income');
+                    const expensePoints = getPoints('expense');
+
+                    const incomePath = getCurvePath(incomePoints);
+                    const expensePath = getCurvePath(expensePoints);
+
+                    const formatXAxisDate = (dateStr) => {
+                      if (!dateStr) return '';
+                      try {
+                        const date = new Date(dateStr);
+                        if (filterTime === 'week') {
+                          const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+                          return days[date.getDay()];
+                        } else if (filterTime === 'month') {
+                          const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                          return `${date.getDate()} ${months[date.getMonth()]}`;
+                        } else if (filterTime === 'year') {
+                          const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                          return months[date.getMonth()];
+                        }
+                        return `${date.getDate()}/${date.getMonth() + 1}`;
+                      } catch (e) {
+                        return dateStr;
+                      }
+                    };
+
+                    const shouldShowLabel = (index, total) => {
+                      if (total <= 8) return true;
+                      if (total <= 15) return index % 2 === 0;
+                      if (total <= 25) return index % 4 === 0;
+                      return index % 5 === 0 || index === total - 1;
+                    };
+
+                    return (
+                      <svg width="100%" height="100%" viewBox="0 0 540 220" style={{ overflow: 'visible' }}>
+                        <defs>
+                          {/* Premium drop shadows for chart lines */}
+                          <filter id="chart-glow-income" x="-10%" y="-10%" width="120%" height="120%">
+                            <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor="#10b981" floodOpacity="0.22" />
+                          </filter>
+                          <filter id="chart-glow-expense" x="-10%" y="-10%" width="120%" height="120%">
+                            <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor="#f43f5e" floodOpacity="0.22" />
+                          </filter>
+
+                          {/* Line gradients */}
+                          <linearGradient id="line-grad-income" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#10b981" />
+                            <stop offset="100%" stopColor="#34d399" />
+                          </linearGradient>
+                          <linearGradient id="line-grad-expense" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#f43f5e" />
+                            <stop offset="50%" stopColor="#ec4899" />
+                            <stop offset="100%" stopColor="#f59e0b" />
+                          </linearGradient>
+                        </defs>
+
+                        {/* Grid lines */}
+                        <line x1="55" y1="20" x2="520" y2="20" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+                        <line x1="55" y1="58.75" x2="520" y2="58.75" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+                        <line x1="55" y1="97.5" x2="520" y2="97.5" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+                        <line x1="55" y1="136.25" x2="520" y2="136.25" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+                        <line x1="55" y1="175" x2="520" y2="175" stroke="var(--border-color)" strokeWidth="1.5" opacity="0.8" />
+
+                        {/* Y-Axis Labels (inside SVG, scales proportionally, does not stretch!) */}
+                        <text x="45" y="24" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal).toLocaleString('th-TH')}</text>
+                        <text x="45" y="62.75" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal * 0.75).toLocaleString('th-TH')}</text>
+                        <text x="45" y="101.5" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal * 0.5).toLocaleString('th-TH')}</text>
+                        <text x="45" y="140.25" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal * 0.25).toLocaleString('th-TH')}</text>
+                        <text x="45" y="179" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">0.00</text>
+
+                        {/* Hover vertical guideline */}
+                        {hoveredIndex !== null && incomePoints[hoveredIndex] && (
+                          <line
+                            x1={incomePoints[hoveredIndex].x}
+                            y1="20"
+                            x2={incomePoints[hoveredIndex].x}
+                            y2="175"
+                            stroke="var(--primary)"
+                            strokeWidth="1.5"
+                            strokeDasharray="4,4"
+                            opacity="0.6"
+                          />
+                        )}
+
+                        {/* Chart lines */}
+                        <path d={incomePath} fill="none" stroke="url(#line-grad-income)" strokeWidth="4.5" strokeLinecap="round" filter="url(#chart-glow-income)" />
+                        <path d={expensePath} fill="none" stroke="url(#line-grad-expense)" strokeWidth="4.5" strokeLinecap="round" filter="url(#chart-glow-expense)" />
+
+                        {/* Data labels and dots for Income */}
+                        {incomePoints.map((p, idx) => (
+                          <g key={`inc-${idx}`} style={{ pointerEvents: 'none' }}>
+                            {/* Hover value tooltip */}
+                            {(hoveredIndex === idx || dates.length <= 10) && p.value > 0 && (
+                              <g>
+                                <rect x={p.x - 25} y={p.y - 25} width="50" height="15" rx="3" fill="#10b981" opacity="0.9" />
+                                <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize="0.6rem" fontWeight="800" fill="#ffffff">
+                                  {Math.round(p.value).toLocaleString('th-TH')}
+                                </text>
+                              </g>
+                            )}
+                            {/* Point Dot */}
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r={hoveredIndex === idx ? 6.5 : 4}
+                              fill="#ffffff"
+                              stroke="#10b981"
+                              strokeWidth={hoveredIndex === idx ? 4 : 2.5}
+                              style={{ transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                            />
+                          </g>
+                        ))}
+
+                        {/* Data labels and dots for Expense */}
+                        {expensePoints.map((p, idx) => (
+                          <g key={`exp-${idx}`} style={{ pointerEvents: 'none' }}>
+                            {/* Hover value tooltip */}
+                            {(hoveredIndex === idx || dates.length <= 10) && p.value > 0 && (
+                              <g>
+                                <rect x={p.x - 25} y={p.y - 25} width="50" height="15" rx="3" fill="#f43f5e" opacity="0.9" />
+                                <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize="0.6rem" fontWeight="800" fill="#ffffff">
+                                  {Math.round(p.value).toLocaleString('th-TH')}
+                                </text>
+                              </g>
+                            )}
+                            {/* Point Dot */}
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r={hoveredIndex === idx ? 6.5 : 4}
+                              fill="#ffffff"
+                              stroke="#f43f5e"
+                              strokeWidth={hoveredIndex === idx ? 4 : 2.5}
+                              style={{ transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                            />
+                          </g>
+                        ))}
+
+                        {/* X-Axis labels */}
+                        {dates.map((d, idx) => {
+                          if (!shouldShowLabel(idx, dates.length)) return null;
+                          const x = 55 + (idx / (dates.length - 1 || 1)) * 465;
+                          return (
+                            <text
+                              key={`x-lbl-${idx}`}
+                              x={x}
+                              y="198"
+                              textAnchor="middle"
+                              fontSize="0.7rem"
+                              fontWeight="700"
+                              fill="var(--text-muted)"
+                            >
+                              {formatXAxisDate(d)}
+                            </text>
+                          );
+                        })}
+
+                        {/* Hover triggers columns */}
+                        {dates.map((d, idx) => {
+                          const x = 55 + (idx / (dates.length - 1 || 1)) * 465;
+                          const colWidth = dates.length > 1 ? 465 / (dates.length - 1) : 465;
+                          const rectX = idx === 0 ? 55 : x - colWidth / 2;
+                          const rectWidth = idx === 0 || idx === dates.length - 1 ? colWidth / 2 : colWidth;
+
+                          return (
+                            <rect
+                              key={`trg-${idx}`}
+                              x={rectX}
+                              y="10"
+                              width={rectWidth}
+                              height="175"
+                              fill="transparent"
+                              style={{ cursor: 'pointer' }}
+                              onMouseEnter={() => setHoveredIndex(idx)}
+                              onMouseLeave={() => setHoveredIndex(null)}
+                            />
+                          );
+                        })}
                       </svg>
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                      กรุณาเพิ่มรายการข้อมูลการเงินอย่างน้อย 2 รายการเพื่อแสดงกราฟ
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
 
