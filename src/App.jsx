@@ -1089,6 +1089,319 @@ export default function App() {
     setShowPasswordMap(prev => ({ ...prev, [userId]: !prev[userId] }));
   };
 
+  // --- DATA IMPORT & EXPORT HANDLERS ---
+  const exportToCSV = (dataType) => {
+    let csvContent = "";
+    let filename = "";
+    if (dataType === 'transactions') {
+      const headers = ["วันที่", "ประเภท", "หมวดหมู่", "คำอธิบาย", "จำนวนเงิน", "เลขที่อ้างอิง"];
+      const rows = transactions.map(t => [
+        t.date,
+        t.type === 'income' ? 'รายรับ' : 'รายจ่าย',
+        t.category,
+        t.description,
+        t.amount,
+        t.ref || ''
+      ]);
+      csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
+      filename = "transactions_export.csv";
+    } else if (dataType === 'products') {
+      const headers = ["รหัสสินค้า", "ชื่อสินค้า", "หมวดหมู่", "ราคาขาย", "ราคาต้นทุน", "จำนวนคงเหลือ"];
+      const rows = products.map(p => [
+        p.sku || p.id,
+        p.name,
+        p.category,
+        p.price,
+        p.cost || 0,
+        p.stock
+      ]);
+      csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
+      filename = "products_export.csv";
+    } else if (dataType === 'salary') {
+      const headers = ["ชื่อพนักงาน", "ตำแหน่งงาน", "ฐานเงินเดือน", "รายได้พิเศษทั้งหมด", "หักประกันสังคม", "หักภาษี ณ ที่จ่าย", "เลขบัญชีธนาคาร", "ธนาคาร"];
+      const rows = salaries.map(s => [
+        s.employeeName,
+        s.employeeRole,
+        s.baseSalary,
+        s.allowance || 0,
+        s.deductionSocial,
+        s.deductionTax,
+        s.bankAccount,
+        s.bankName
+      ]);
+      csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
+      filename = "salaries_export.csv";
+    }
+    
+    if (csvContent) {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleCSVImport = (e, dataType) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const lines = text.split(/\r?\n/);
+      if (lines.length < 2) {
+        alert("ไฟล์ไม่มีข้อมูลเพียงพอ");
+        return;
+      }
+      
+      const parseLine = (line) => {
+        let values = [];
+        let insideQuote = false;
+        let currentVal = "";
+        for (let i = 0; i < line.length; i++) {
+          let char = line[i];
+          if (char === '"') {
+            insideQuote = !insideQuote;
+          } else if (char === ',' && !insideQuote) {
+            values.push(currentVal.trim());
+            currentVal = "";
+          } else {
+            currentVal += char;
+          }
+        }
+        values.push(currentVal.trim());
+        return values;
+      };
+
+      const importedItems = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const cols = parseLine(lines[i]);
+        if (cols.length === 0) continue;
+        
+        if (dataType === 'transactions') {
+          const [date, typeText, category, description, amountVal, ref] = cols;
+          if (!amountVal) continue;
+          const amount = parseFloat(amountVal.replace(/,/g, '')) || 0;
+          const type = typeText === 'รายรับ' || typeText === 'income' ? 'income' : 'expense';
+          if (amount > 0) {
+            importedItems.push({
+              id: `tx_${Date.now()}_${i}`,
+              date: date || new Date().toISOString().split('T')[0],
+              type,
+              category: category || 'อื่นๆ',
+              description: description || '',
+              amount,
+              ref: ref || `IMP-${Date.now().toString().slice(-6)}`
+            });
+          }
+        } else if (dataType === 'products') {
+          const [sku, name, category, priceVal, costVal, stockVal] = cols;
+          if (name) {
+            importedItems.push({
+              id: `prod_${Date.now()}_${i}`,
+              sku: sku || `SKU-${Date.now().toString().slice(-4)}-${i}`,
+              name,
+              category: category || 'ทั่วไป',
+              price: parseFloat(priceVal) || 0,
+              cost: parseFloat(costVal) || 0,
+              stock: parseInt(stockVal) || 0,
+              icon: '📦'
+            });
+          }
+        }
+      }
+      
+      if (importedItems.length > 0) {
+        if (dataType === 'transactions') {
+          if (isFirebaseConfigured()) {
+            importedItems.forEach(item => saveDocToCloud('transactions', item));
+          } else {
+            setTransactions(prev => [...importedItems, ...prev]);
+          }
+          alert(`นำเข้าบัญชีรายรับ-รายจ่ายสำเร็จ ${importedItems.length} รายการ`);
+        } else if (dataType === 'products') {
+          if (isFirebaseConfigured()) {
+            importedItems.forEach(item => saveDocToCloud('products', item));
+          } else {
+            setProducts(prev => [...prev, ...importedItems]);
+          }
+          alert(`นำเข้าสินค้าคลังคลัง POS สำเร็จ ${importedItems.length} รายการ`);
+        }
+      } else {
+        alert("ไม่พบข้อมูลที่ถูกต้องในการนำเข้า");
+      }
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  const printDataReport = (dataType) => {
+    const printWindow = window.open("", "_blank");
+    let content = "";
+    if (dataType === 'transactions') {
+      content = `
+        <html>
+        <head>
+          <title>รายงานบัญชีรายรับ-รายจ่าย</title>
+          <style>
+            body { font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif; padding: 30px; color: #333; }
+            h1 { text-align: center; font-size: 1.8rem; margin-bottom: 5px; }
+            .meta { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 25px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f8f9fa; font-weight: bold; }
+            .income { color: #10b981; font-weight: bold; }
+            .expense { color: #ef4444; font-weight: bold; }
+            .text-right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>รายงานบัญชีรายรับ-รายจ่าย</h1>
+          <div class="meta">
+            <div><strong>หน่วยงาน:</strong> ${settings.companyName || 'FlowLedger Pro'}</div>
+            <div><strong>วันที่ออกรายงาน:</strong> ${new Date().toLocaleDateString('th-TH')}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>ประเภท</th>
+                <th>หมวดหมู่</th>
+                <th>คำอธิบาย</th>
+                <th class="text-right">จำนวนเงิน (บาท)</th>
+                <th>เลขที่อ้างอิง</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transactions.map(t => `
+                <tr>
+                  <td>${t.date}</td>
+                  <td class="${t.type}">${t.type === 'income' ? 'รายรับ' : 'รายจ่าย'}</td>
+                  <td>${t.category}</td>
+                  <td>${t.description}</td>
+                  <td class="text-right">${t.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                  <td>${t.ref || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+        </html>
+      `;
+    } else if (dataType === 'products') {
+      content = `
+        <html>
+        <head>
+          <title>รายงานคลังสินค้า POS</title>
+          <style>
+            body { font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif; padding: 30px; color: #333; }
+            h1 { text-align: center; font-size: 1.8rem; margin-bottom: 5px; }
+            .meta { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 25px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f8f9fa; font-weight: bold; }
+            .text-right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>รายงานคลังสินค้า POS (Inventory Report)</h1>
+          <div class="meta">
+            <div><strong>หน่วยงาน:</strong> ${settings.companyName || 'FlowLedger Pro'}</div>
+            <div><strong>วันที่ออกรายงาน:</strong> ${new Date().toLocaleDateString('th-TH')}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>รหัสสินค้า (SKU)</th>
+                <th>ชื่อสินค้า / บริการ</th>
+                <th>หมวดหมู่</th>
+                <th class="text-right">ราคาต่อหน่วย (บาท)</th>
+                <th class="text-right">จำนวนคงเหลือ (สต็อก)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${products.map(p => `
+                <tr>
+                  <td><code>${p.sku}</code></td>
+                  <td>${p.name}</td>
+                  <td>${p.category}</td>
+                  <td class="text-right">฿${p.price.toLocaleString()}</td>
+                  <td class="text-right">${p.stock.toLocaleString()} ชิ้น</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+        </html>
+      `;
+    } else if (dataType === 'salary') {
+      content = `
+        <html>
+        <head>
+          <title>รายงานพนักงานและอัตราเงินเดือน</title>
+          <style>
+            body { font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif; padding: 30px; color: #333; }
+            h1 { text-align: center; font-size: 1.8rem; margin-bottom: 5px; }
+            .meta { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 25px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f8f9fa; font-weight: bold; }
+            .text-right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>รายงานโครงสร้างเงินเดือนและพนักงาน (Payroll Report)</h1>
+          <div class="meta">
+            <div><strong>หน่วยงาน:</strong> ${settings.companyName || 'FlowLedger Pro'}</div>
+            <div><strong>วันที่ออกรายงาน:</strong> ${new Date().toLocaleDateString('th-TH')}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>ชื่อพนักงาน</th>
+                <th>ตำแหน่ง</th>
+                <th class="text-right">ฐานเงินเดือน</th>
+                <th class="text-right">รายได้พิเศษสะสม</th>
+                <th class="text-right">หักประกันสังคม</th>
+                <th class="text-right">หักภาษี ณ ที่จ่าย</th>
+                <th>ช่องทางรับเงิน</th>
+                <th>เลขที่บัญชี</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${salaries.map(s => `
+                <tr>
+                  <td>${s.employeeName}</td>
+                  <td>${s.employeeRole}</td>
+                  <td class="text-right">฿${s.baseSalary.toLocaleString()}</td>
+                  <td class="text-right">฿${(s.allowance || 0).toLocaleString()}</td>
+                  <td class="text-right">฿${s.deductionSocial.toLocaleString()}</td>
+                  <td class="text-right">฿${s.deductionTax.toLocaleString()}</td>
+                  <td>${s.bankName}</td>
+                  <td>${s.bankAccount}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+        </html>
+      `;
+    }
+    
+    if (content) {
+      printWindow.document.write(content);
+      printWindow.document.close();
+    }
+  };
+
   // --- POS CART HANDLERS ---
   const addToCart = (product) => {
     if (product.stock <= 0) return;
@@ -3424,7 +3737,7 @@ export default function App() {
                 </header>
 
                 {/* Sub tab navigation */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
                   <button 
                     className={`btn ${settingsSubTab === 'general' ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={() => setSettingsSubTab('general')}
@@ -3442,6 +3755,12 @@ export default function App() {
                     onClick={() => setSettingsSubTab('products')}
                   >
                     จัดการคลังสินค้า POS
+                  </button>
+                  <button 
+                    className={`btn ${settingsSubTab === 'importexport' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setSettingsSubTab('importexport')}
+                  >
+                    นำเข้า & ส่งออกข้อมูล (Excel/PDF/CSV)
                   </button>
                 </div>
 
@@ -3793,6 +4112,117 @@ export default function App() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                )}
+
+                {settingsSubTab === 'importexport' && (
+                  <div className="glass-card" style={{ padding: '2rem' }}>
+                    <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                      
+                      {/* Left: Import Section */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', borderRight: '1px solid var(--border-color)', paddingRight: '2rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 0.5rem 0' }}>
+                            📥 นำเข้าข้อมูล (Import Center)
+                          </h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            อัปโหลดข้อมูลจากไฟล์ภายนอกรูปแบบ CSV เพื่อนำเข้าสู่ระบบบัญชีและคลังสินค้าโดยอัตโนมัติ
+                          </p>
+                        </div>
+
+                        {/* Import Transactions */}
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '1rem' }}>
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>1. นำเข้าบัญชีรายรับ-รายจ่าย (Transactions)</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', justifyContent: 'center', margin: 0 }}>
+                              📁 เลือกไฟล์ CSV รายการบัญชี
+                              <input 
+                                type="file" 
+                                accept=".csv" 
+                                style={{ display: 'none' }} 
+                                onChange={(e) => handleCSVImport(e, 'transactions')}
+                              />
+                            </label>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                              * รูปแบบคอลัมน์ของไฟล์ CSV: <br/>
+                              <code>วันที่ (YYYY-MM-DD), ประเภท (รายรับ/รายจ่าย), หมวดหมู่, คำอธิบาย, จำนวนเงิน, เลขที่อ้างอิง</code>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Import POS Inventory */}
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '1rem' }}>
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>2. นำเข้าสินค้าคลัง POS (Products)</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', justifyContent: 'center', margin: 0 }}>
+                              📁 เลือกไฟล์ CSV สินค้า
+                              <input 
+                                type="file" 
+                                accept=".csv" 
+                                style={{ display: 'none' }} 
+                                onChange={(e) => handleCSVImport(e, 'products')}
+                              />
+                            </label>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                              * รูปแบบคอลัมน์ของไฟล์ CSV: <br/>
+                              <code>รหัสสินค้า(SKU), ชื่อสินค้า, หมวดหมู่, ราคาขาย, ราคาต้นทุน, จำนวนคงเหลือ</code>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Export Section */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 0.5rem 0' }}>
+                            📤 ส่งออกข้อมูล (Export Center)
+                          </h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            เลือกประเภทชุดข้อมูลที่ต้องการเพื่อสร้างไฟล์รายงานดาวน์โหลดไปใช้งานต่อในโปรแกรมอื่น เช่น Excel หรือพิมพ์รายงาน PDF
+                          </p>
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontWeight: 'bold' }}>ขั้นตอนที่ 1: เลือกชุดข้อมูล (Select Data Source)</label>
+                          <select 
+                            id="export-datatype-select"
+                            className="form-select"
+                            defaultValue="transactions"
+                          >
+                            <option value="transactions">📊 บัญชีรายรับ-รายจ่าย (Transactions List)</option>
+                            <option value="products">📦 ข้อมูลคลังสินค้า POS (POS Inventory List)</option>
+                            <option value="salary">💵 อัตราเงินเดือนพนักงาน (Employees Payroll List)</option>
+                          </select>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+                          <label className="form-label" style={{ fontWeight: 'bold', margin: 0 }}>ขั้นตอนที่ 2: เลือกประเภทไฟล์ดาวน์โหลด</label>
+                          
+                          <button 
+                            className="btn btn-success" 
+                            style={{ justifyContent: 'center', padding: '0.75rem 1rem' }}
+                            onClick={() => {
+                              const selectEl = document.getElementById('export-datatype-select');
+                              if (selectEl) exportToCSV(selectEl.value);
+                            }}
+                          >
+                            🟢 ส่งออกไฟล์ Excel / CSV (.csv)
+                          </button>
+
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ justifyContent: 'center', padding: '0.75rem 1rem', backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}
+                            onClick={() => {
+                              const selectEl = document.getElementById('export-datatype-select');
+                              if (selectEl) printDataReport(selectEl.value);
+                            }}
+                          >
+                            🔴 ส่งออกรายงานและบันทึกเป็น PDF (.pdf)
+                          </button>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 )}
