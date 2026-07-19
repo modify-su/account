@@ -8,6 +8,17 @@ import {
   setDoc 
 } from "firebase/firestore";
 
+// Default Hardcoded Firebase Configuration Fallback
+// วางค่า Firebase Config ของคุณที่นี่เพื่อให้แอปเชื่อมต่ออัตโนมัติทุกอุปกรณ์โดยไม่ต้องตั้งค่าในบราวเซอร์
+const DEFAULT_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+
 // Helper to retrieve firebase config from settings/localStorage
 export const getFirebaseConfig = () => {
   const saved = localStorage.getItem("flowledger_firebase_config");
@@ -16,9 +27,14 @@ export const getFirebaseConfig = () => {
       return JSON.parse(saved);
     } catch (e) {
       console.error("Invalid Firebase Config saved:", e);
-      return null;
     }
   }
+  
+  // คืนค่า Config เริ่มต้น หากกรอกรายละเอียดด้านบนไว้
+  if (DEFAULT_CONFIG && DEFAULT_CONFIG.apiKey) {
+    return DEFAULT_CONFIG;
+  }
+  
   return null;
 };
 
