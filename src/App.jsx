@@ -3502,14 +3502,26 @@ export default function App() {
                     </div>
 
                     <div className="doc-hub-footer">
-                      <button className="btn btn-secondary" onClick={() => handlePrintDocInvoice(doc)} style={{ flexGrow: 1, padding: '0.4rem', justifyContent: 'center' }}>
-                        <Printer size={14} /> พิมพ์รายงาน
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => handlePrintDocInvoice(doc)} 
+                        style={{ flexGrow: 1, padding: '0.4rem 0.2rem', justifyContent: 'center', whiteSpace: 'nowrap', fontSize: '0.75rem' }}
+                      >
+                        <Printer size={14} style={{ flexShrink: 0 }} /> พิมพ์รายงาน
                       </button>
-                      <button className="btn btn-secondary" onClick={() => setSelectedDoc(doc)} style={{ flexGrow: 1, padding: '0.4rem', justifyContent: 'center' }}>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => setSelectedDoc(doc)} 
+                        style={{ flexGrow: 1, padding: '0.4rem 0.2rem', justifyContent: 'center', whiteSpace: 'nowrap', fontSize: '0.75rem' }}
+                      >
                         ดูรูปบิลสลิป
                       </button>
                       {currentUser.role === 'admin' && (
-                        <button className="btn btn-danger" onClick={() => handleDeleteDocument(doc.id)} style={{ padding: '0.4rem', minWidth: '36px', justifyContent: 'center' }}>
+                        <button 
+                          className="btn btn-danger" 
+                          onClick={() => handleDeleteDocument(doc.id)} 
+                          style={{ padding: '0.4rem', minWidth: '36px', justifyContent: 'center', flexShrink: 0 }}
+                        >
                           <Trash2 size={14} />
                         </button>
                       )}
