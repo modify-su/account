@@ -110,6 +110,21 @@ export default async function handler(req, res) {
 
           // Try real OCR via SlipOK if key exists
           const slipokApiKey = settings.slipokApiKey;
+          
+          // Log start of scan attempt to Firestore for remote debugging
+          try {
+            await addDoc(collection(db, "webhook_logs"), {
+              timestamp: new Date().toISOString(),
+              event: "ocr_start",
+              messageId: messageId,
+              hasApiKey: !!slipokApiKey,
+              apiKeyPrefix: slipokApiKey ? slipokApiKey.slice(0, 7) : "none",
+              branchId: settings.slipokBranchId || "none"
+            });
+          } catch (e) {
+            console.error("Failed to log start to Firestore:", e);
+          }
+
           if (slipokApiKey && !slipokApiKey.startsWith("slipok_api_key_mock") && slipokApiKey.trim() !== "") {
             try {
               // Parse SlipOK branch ID from settings
@@ -133,6 +148,14 @@ export default async function handler(req, res) {
 
               if (lineRes.ok) {
                 const imageBuffer = await lineRes.arrayBuffer();
+                
+                try {
+                  await addDoc(collection(db, "webhook_logs"), {
+                    timestamp: new Date().toISOString(),
+                    event: "line_image_downloaded",
+                    bufferLength: imageBuffer.byteLength
+                  });
+                } catch (e) {}
 
                 // B. Call SlipOK API
                 const formData = new FormData();
@@ -147,8 +170,20 @@ export default async function handler(req, res) {
                   body: formData
                 });
 
+                const slipokStatus = slipokRes.status;
+                const slipokText = await slipokRes.text();
+
+                try {
+                  await addDoc(collection(db, "webhook_logs"), {
+                    timestamp: new Date().toISOString(),
+                    event: "slipok_api_called",
+                    status: slipokStatus,
+                    responseText: slipokText
+                  });
+                } catch (e) {}
+
                 if (slipokRes.ok) {
-                  const ocrData = await slipokRes.json();
+                  const ocrData = JSON.parse(slipokText);
                   if (ocrData.success && ocrData.data) {
                     const d = ocrData.data;
                     slipAmount = parseFloat(d.amount) || slipAmount;
@@ -178,14 +213,39 @@ export default async function handler(req, res) {
                     isRealOcr = true;
                   }
                 } else {
-                  console.error("SlipOK response failed:", await slipokRes.text());
+                  console.error("SlipOK response failed:", slipokText);
                 }
               } else {
-                console.error("Failed to fetch image from LINE:", await lineRes.text());
+                const lineErrText = await lineRes.text();
+                console.error("Failed to fetch image from LINE:", lineErrText);
+                try {
+                  await addDoc(collection(db, "webhook_logs"), {
+                    timestamp: new Date().toISOString(),
+                    event: "line_image_download_failed",
+                    status: lineRes.status,
+                    errorText: lineErrText
+                  });
+                } catch (e) {}
               }
             } catch (err) {
               console.error("Error doing real SlipOK scan:", err);
+              try {
+                await addDoc(collection(db, "webhook_logs"), {
+                  timestamp: new Date().toISOString(),
+                  event: "scan_exception",
+                  error: err.message,
+                  stack: err.stack || ""
+                });
+              } catch (e) {}
             }
+          } else {
+            try {
+              await addDoc(collection(db, "webhook_logs"), {
+                timestamp: new Date().toISOString(),
+                event: "skipped_real_ocr",
+                reason: !slipokApiKey ? "No key in settings" : "Mock key detected"
+              });
+            } catch (e) {}
           }
 
           const docId = `doc-${Date.now()}`;
