@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     }
 
     // Get settings from Firestore to retrieve LINE channel token
-    const q = query(collection(db, "office_settings"), limit(1));
+    const q = query(collection(db, "settings"), limit(1));
     const snapshot = await getDocs(q);
     let settings = {};
     snapshot.forEach((d) => {
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
             text: userText,
             time: new Date().toTimeString().split(" ")[0].slice(0, 5)
           };
-          await addDoc(collection(db, "flowledger_chat_messages_v3"), userMsg);
+          await addDoc(collection(db, "chat_messages"), userMsg);
 
           // 2. Generate bot reply
           let botReplyText = `รับทราบข้อความ: "${userText}" ครับ\n\nสามารถส่งรูปสลิปเพื่อบันทึกบัญชีอัตโนมัติได้เลยครับ`;
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
             text: botReplyText,
             time: new Date().toTimeString().split(" ")[0].slice(0, 5)
           };
-          await addDoc(collection(db, "flowledger_chat_messages_v3"), botMsg);
+          await addDoc(collection(db, "chat_messages"), botMsg);
 
           // 3. Reply to user on LINE
           await sendLineReply(replyToken, botReplyText, channelToken);
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
             isImage: true,
             time: new Date().toTimeString().split(" ")[0].slice(0, 5)
           };
-          await addDoc(collection(db, "flowledger_chat_messages_v3"), userMsg);
+          await addDoc(collection(db, "chat_messages"), userMsg);
 
           // 2. Simulate OCR processing on the backend and save to Firestore
           const docId = `doc-${Date.now()}`;
@@ -140,9 +140,9 @@ export default async function handler(req, res) {
           };
 
           // Save to Firestore collections
-          await addDoc(collection(db, "flowledger_docs_v3"), newDoc);
-          await addDoc(collection(db, "flowledger_txs_v3"), newTx);
-          await addDoc(collection(db, "flowledger_chat_messages_v3"), botMsg);
+          await addDoc(collection(db, "documents"), newDoc);
+          await addDoc(collection(db, "transactions"), newTx);
+          await addDoc(collection(db, "chat_messages"), botMsg);
 
           // Reply to user on LINE
           await sendLineReply(replyToken, botReplyText, channelToken);
