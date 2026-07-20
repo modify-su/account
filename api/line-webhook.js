@@ -276,7 +276,7 @@ export default async function handler(req, res) {
           };
 
           const botReplyText = isRealOcr
-            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\nผู้โอน: ${slipSender}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\nระบบบันทึกบัญชีเข้าคลัง Vercel เรียบร้อยแล้วครับ`
+            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\nผู้โอน: ${slipSender}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\nบันทึกเข้าระบบเรียบร้อยครับ`
             : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*หมายเหตุ: เนื่องจากยังไม่ได้กรอกคีย์ SlipOK ด้านบน ระบบจึงจำลองข้อมูลสุ่มขึ้นมาแทน`;
 
           const botMsg = {
