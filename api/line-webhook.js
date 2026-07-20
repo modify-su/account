@@ -105,8 +105,20 @@ export default async function handler(req, res) {
           let slipTime = new Date().toTimeString().split(" ")[0].slice(0, 5);
           let slipRef = `Ref-${Math.floor(Math.random() * 900000) + 100000}`;
           let slipSender = "ลูกค้าทางไลน์";
+          let slipReceiver = "บริษัท";
           let slipMerchant = "ธนาคารกสิกรไทย (KBank)";
           let isRealOcr = false;
+          let isIncome = true; // Default: incoming payment (receipt)
+          let category = "รายได้จากการขาย";
+
+          // Check caption text if provided
+          if (message.text) {
+            const lowerText = message.text.toLowerCase();
+            if (lowerText.includes("จ่าย") || lowerText.includes("ค่า") || lowerText.includes("ชำระ") || lowerText.includes("ออก")) {
+              isIncome = false;
+              category = "ค่าใช้จ่ายทั่วไป";
+            }
+          }
 
           // Try real OCR via SlipOK if key exists
           const slipokApiKey = settings.slipokApiKey;
@@ -192,9 +204,28 @@ export default async function handler(req, res) {
                     }
                     slipTime = d.transTime || slipTime;
                     slipRef = d.refNo || slipRef;
-                    if (d.sender && d.sender.displayName) {
-                      slipSender = d.sender.displayName;
+                    if (d.sender && (d.sender.displayName || d.sender.name)) {
+                      slipSender = d.sender.displayName || d.sender.name;
                     }
+                    if (d.receiver && (d.receiver.displayName || d.receiver.name)) {
+                      slipReceiver = d.receiver.displayName || d.receiver.name;
+                    }
+
+                    // Smart Income vs Expense Classification
+                    const compName = (settings.companyName || "").toLowerCase().trim();
+                    const sName = slipSender.toLowerCase();
+                    const rName = slipReceiver.toLowerCase();
+
+                    if (compName && compName.length > 2 && sName.includes(compName.slice(0, 4))) {
+                      // Our company is the sender -> Money paid out (Expense)
+                      isIncome = false;
+                      category = "ค่าใช้จ่ายทั่วไป";
+                    } else if (compName && compName.length > 2 && rName.includes(compName.slice(0, 4))) {
+                      // Our company is the receiver -> Money received (Income)
+                      isIncome = true;
+                      category = "รายได้จากการขาย";
+                    }
+
                     // Try to get bank info
                     if (d.sendingBank) {
                       const bankNames = {
@@ -254,29 +285,36 @@ export default async function handler(req, res) {
             id: docId,
             date: slipDate,
             time: slipTime,
-            type: "receipt",
-            title: isRealOcr ? `สลิปโอนเงินจริง (SlipOK)` : `สลิปโอนเงิน (LINE Bot OCR)`,
+            type: isIncome ? "receipt" : "expense",
+            title: isRealOcr 
+              ? (isIncome ? `สลิปโอนเงินเข้า (SlipOK)` : `สลิปโอนเงินออก (SlipOK)`)
+              : `สลิปโอนเงิน (LINE Bot OCR)`,
             ref: slipRef,
             amount: slipAmount,
             merchant: slipMerchant,
-            category: "รายได้จากการขาย",
+            category: category,
             sender: slipSender,
+            receiver: slipReceiver,
             status: "archived",
-            details: isRealOcr ? `สแกนสลิปจริงสำเร็จทาง LINE` : `บันทึกอัตโนมัติจาก LINE Bot (สุ่มยอดเงิน)`
+            details: isRealOcr 
+              ? `สแกนสลิปจริงสำเร็จทาง LINE (${isIncome ? 'รายรับ' : 'รายจ่าย'})`
+              : `บันทึกอัตโนมัติจาก LINE Bot (สุ่มยอดเงิน)`
           };
 
           const newTx = {
             id: `t_line_${Date.now()}`,
             date: slipDate,
-            type: "income",
-            category: "รายได้จากการขาย",
+            type: isIncome ? "income" : "expense",
+            category: category,
             amount: slipAmount,
-            description: isRealOcr ? `LINE Bot: โอนเงินจริงจาก ${slipSender}` : `LINE Bot OCR: ${slipMerchant} (โอนเงินสำเร็จ)`,
+            description: isRealOcr 
+              ? (isIncome ? `LINE Bot (รับเงิน): จาก ${slipSender}` : `LINE Bot (จ่ายเงิน): ให้ ${slipReceiver}`)
+              : `LINE Bot OCR: ${slipMerchant} (โอนเงินสำเร็จ)`,
             ref: slipRef
           };
 
           const botReplyText = isRealOcr
-            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\nผู้โอน: ${slipSender}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\nบันทึกเข้าระบบเรียบร้อยครับ`
+            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ (เงินเข้า)' : '🔴 รายจ่าย (เงินออก)'}\n👤 ${isIncome ? 'ผู้โอน' : 'ผู้รับเงิน'}: ${isIncome ? slipSender : slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\nบันทึกเข้าระบบเรียบร้อยครับ`
             : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*หมายเหตุ: เนื่องจากยังไม่ได้กรอกคีย์ SlipOK ด้านบน ระบบจึงจำลองข้อมูลสุ่มขึ้นมาแทน`;
 
           const botMsg = {
