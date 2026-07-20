@@ -2175,11 +2175,6 @@ export default function App() {
               <div className="login-toggle-link" onClick={() => { setLoginTab('register'); setAuthError(''); }} style={{ marginTop: '0.5rem' }}>
                 ไม่มีบัญชีใช่หรือไม่? สมัครใช้งานใหม่ที่นี่
               </div>
-
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                💡 บัญชีทดลอง: <strong>admin</strong> / <strong>password123</strong> (ผู้ดูแล) <br />
-                หรือ <strong>staff</strong> / <strong>password123</strong> (พนักงาน)
-              </div>
             </form>
           ) : (
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
