@@ -1665,6 +1665,38 @@ export default function App() {
     }
   };
 
+  const handleClearAllTransactions = async () => {
+    if (currentUser.role !== 'admin') {
+      alert('ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้ (เฉพาะผู้ดูแลระบบเท่านั้น)');
+      return;
+    }
+
+    if (transactions.length === 0) {
+      alert('ไม่มีรายการธุรกรรมให้เคลียร์ในระบบ');
+      return;
+    }
+
+    const confirmClear = confirm(
+      `คุณต้องการลบ/เคลียร์รายการธุรกรรมทั้งหมด (${transactions.length} รายการ) ออกจากระบบใช่หรือไม่?\n\n⚠️ คำเตือน: รายการทั้งหมดจะถูกลบออกและไม่สามารถกู้คืนได้!`
+    );
+
+    if (confirmClear) {
+      try {
+        if (isFirebaseConfigured()) {
+          for (const tx of transactions) {
+            await deleteDocFromCloud('transactions', tx.id);
+          }
+        } else {
+          setTransactions([]);
+        }
+        alert('เคลียร์รายการธุรกรรมทั้งหมดเรียบร้อยแล้ว');
+      } catch (err) {
+        console.error(err);
+        alert('เกิดข้อผิดพลาดในการเคลียร์ข้อมูล: ' + err.message);
+      }
+    }
+  };
+
   const openEditModal = (tx) => {
     if (currentUser.role !== 'admin') {
       alert('ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้');
@@ -2556,6 +2588,28 @@ export default function App() {
                     <input type="date" className="form-input" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ width: '135px', padding: '0.45rem', fontSize: '0.85rem' }} />
                   </div>
                 )}
+                {currentUser.role === 'admin' && (
+                  <button 
+                    className="btn"
+                    onClick={handleClearAllTransactions}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.5rem 0.95rem',
+                      fontSize: '0.85rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: 'var(--danger)',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                    title="ลบ/เคลียร์รายการธุรกรรมทั้งหมด"
+                  >
+                    <Trash2 size={15} /> เคลียร์รายการ
+                  </button>
+                )}
                 <button className="btn btn-primary" onClick={() => {
                   setTxForm({
                     type: 'expense',
@@ -2939,9 +2993,32 @@ export default function App() {
             <div className="glass-card">
               <div className="flex-between mb-4">
                 <span className="chart-card-title">รายการล่าสุด</span>
-                <button className="btn btn-secondary" onClick={() => setActiveTab('transactions')}>
-                  ดูบัญชีทั้งหมด
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {currentUser.role === 'admin' && transactions.length > 0 && (
+                    <button 
+                      className="btn"
+                      onClick={handleClearAllTransactions}
+                      style={{
+                        padding: '0.4rem 0.85rem',
+                        fontSize: '0.8rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        color: 'var(--danger)',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <Trash2 size={14} /> เคลียร์รายการ
+                    </button>
+                  )}
+                  <button className="btn btn-secondary" onClick={() => setActiveTab('transactions')}>
+                    ดูบัญชีทั้งหมด
+                  </button>
+                </div>
               </div>
               <div className="table-container">
                 <table className="custom-table">
@@ -2987,20 +3064,44 @@ export default function App() {
                 <h1>สมุดบันทึกรายรับ-รายจ่าย</h1>
                 <p>จัดการธุรกรรม ค้นหา วิเคราะห์ข้อมูลการเดินบัญชีของสำนักงาน</p>
               </div>
-              <button className="btn btn-primary" onClick={() => {
-                setTxForm({
-                  type: 'expense',
-                  date: new Date().toISOString().split('T')[0],
-                  amount: '',
-                  category: 'ค่าอาหารและเครื่องดื่ม',
-                  description: '',
-                  ref: ''
-                });
-                setEditingTransaction(null);
-                setShowAddModal(true);
-              }}>
-                <Plus size={16} /> เพิ่มรายการเดินบัญชี
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {currentUser.role === 'admin' && (
+                  <button 
+                    className="btn"
+                    onClick={handleClearAllTransactions}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.5rem 0.95rem',
+                      fontSize: '0.85rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: 'var(--danger)',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                    title="ลบ/เคลียร์รายการธุรกรรมทั้งหมด"
+                  >
+                    <Trash2 size={15} /> เคลียร์รายการทั้งหมด
+                  </button>
+                )}
+                <button className="btn btn-primary" onClick={() => {
+                  setTxForm({
+                    type: 'expense',
+                    date: new Date().toISOString().split('T')[0],
+                    amount: '',
+                    category: 'ค่าอาหารและเครื่องดื่ม',
+                    description: '',
+                    ref: ''
+                  });
+                  setEditingTransaction(null);
+                  setShowAddModal(true);
+                }}>
+                  <Plus size={16} /> เพิ่มรายการเดินบัญชี
+                </button>
+              </div>
             </header>
 
             <div className="glass-card mb-4">
