@@ -4410,11 +4410,26 @@ export default function App() {
                           </span>
                         </div>
 
+                        <div className="form-group">
+                          <label className="form-label">SlipOK API Key (สำหรับระบบสแกนสลิปจริง)</label>
+                          <input 
+                            type="password" 
+                            className="form-input" 
+                            placeholder="กรอกคีย์ SlipOK เช่น slpk_live_..."
+                            value={settings.slipokApiKey || ''}
+                            onChange={(e) => setSettings(prev => ({ ...prev, slipokApiKey: e.target.value }))}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
+                            * ลงทะเบียนรับคีย์เพื่อสแกนสลิปธนาคารจริงและดึงยอดเงินอัตโนมัติได้ที่ <a href="https://www.slipok.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>slipok.com</a>
+                          </span>
+                        </div>
+
                         <div className="form-group" style={{ marginTop: '2rem' }}>
                           <div style={{ padding: '1rem', backgroundColor: 'var(--success-glow)', border: '1px solid var(--success)', borderRadius: '8px', color: 'var(--text-main)', fontSize: '0.85rem' }}>
-                            <strong>💡 ระบบจำลองการเชื่อมต่อ API กำลังเปิดใช้งาน (Active)</strong>
+                            <strong>💡 ระบบสแกนและตรวจสลิป LINE Bot กำลังทำงาน (Active)</strong>
                             <p style={{ marginTop: '0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                              รูปภาพสลิปที่แนบในหน้าแชท LINE จะผ่านการส่งแบบ Mock API ไปจำลองการทำ OCR มิลลิวินาที และตอบกลับทันที
+                              หากกรอกคีย์ SlipOK ด้านบน: ระบบจะสแกนรูปภาพสลิปจริงที่ส่งเข้าแชท LINE เพื่อดึงยอดโอนและชื่อคนโอนอัตโนมัติ <br/>
+                              หากไม่ได้กรอก: ระบบแชทจำลองจะทำงานในโหมดจำลอง (Mock OCR) ด้วยยอดเงินสุ่มแทนครับ
                             </p>
                           </div>
                         </div>

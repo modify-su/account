@@ -99,24 +99,99 @@ export default async function handler(req, res) {
           };
           await addDoc(collection(db, "chat_messages"), userMsg);
 
-          // 2. Simulate OCR processing on the backend and save to Firestore
+          // Default mock values as fallback
+          let slipAmount = Math.floor(Math.random() * 2000) + 150;
+          let slipDate = new Date().toISOString().split("T")[0];
+          let slipTime = new Date().toTimeString().split(" ")[0].slice(0, 5);
+          let slipRef = `Ref-${Math.floor(Math.random() * 900000) + 100000}`;
+          let slipSender = "ลูกค้าทางไลน์";
+          let slipMerchant = "ธนาคารกสิกรไทย (KBank)";
+          let isRealOcr = false;
+
+          // Try real OCR via SlipOK if key exists
+          const slipokApiKey = settings.slipokApiKey;
+          if (slipokApiKey && !slipokApiKey.startsWith("slipok_api_key_mock") && slipokApiKey.trim() !== "") {
+            try {
+              // A. Download image from LINE Messaging API
+              const lineImgUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
+              const lineRes = await fetch(lineImgUrl, {
+                headers: {
+                  Authorization: `Bearer ${channelToken}`
+                }
+              });
+
+              if (lineRes.ok) {
+                const imageBuffer = await lineRes.arrayBuffer();
+
+                // B. Call SlipOK API
+                const formData = new FormData();
+                const blob = new Blob([imageBuffer], { type: "image/jpeg" });
+                formData.append("files", blob, "slip.jpg");
+
+                const slipokRes = await fetch("https://api.slipok.com/api/v1/detect", {
+                  method: "POST",
+                  headers: {
+                    "x-authorization": slipokApiKey
+                  },
+                  body: formData
+                });
+
+                if (slipokRes.ok) {
+                  const ocrData = await slipokRes.json();
+                  if (ocrData.success && ocrData.data) {
+                    const d = ocrData.data;
+                    slipAmount = parseFloat(d.amount) || slipAmount;
+                    if (d.transDate) {
+                      slipDate = d.transDate.split("T")[0];
+                    }
+                    slipTime = d.transTime || slipTime;
+                    slipRef = d.refNo || slipRef;
+                    if (d.sender && d.sender.displayName) {
+                      slipSender = d.sender.displayName;
+                    }
+                    // Try to get bank info
+                    if (d.sendingBank) {
+                      const bankNames = {
+                        "002": "ธนาคารกรุงเทพ (BBL)",
+                        "004": "ธนาคารกสิกรไทย (KBank)",
+                        "006": "ธนาคารกรุงไทย (KTB)",
+                        "011": "ธนาคารทหารไทยธนชาต (TTB)",
+                        "014": "ธนาคารไทยพาณิชย์ (SCB)",
+                        "025": "ธนาคารกรุงศรีอยุธยา (BAY)",
+                        "030": "ธนาคารออมสิน (GSB)",
+                        "034": "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (BAAC)",
+                        "098": "PromptPay"
+                      };
+                      slipMerchant = bankNames[d.sendingBank] || `ธนาคารรหัส ${d.sendingBank}`;
+                    }
+                    isRealOcr = true;
+                  }
+                } else {
+                  console.error("SlipOK response failed:", await slipokRes.text());
+                }
+              } else {
+                console.error("Failed to fetch image from LINE:", await lineRes.text());
+              }
+            } catch (err) {
+              console.error("Error doing real SlipOK scan:", err);
+            }
+          }
+
           const docId = `doc-${Date.now()}`;
-          const slipAmount = Math.floor(Math.random() * 2000) + 150; // Random amount 150-2150
-          const slipDate = new Date().toISOString().split("T")[0];
           
           const newDoc = {
             id: docId,
             date: slipDate,
-            time: new Date().toTimeString().split(" ")[0].slice(0, 5),
+            time: slipTime,
             type: "receipt",
-            title: `สลิปโอนเงิน (LINE Bot OCR)`,
-            ref: `Ref-${Math.floor(Math.random() * 900000) + 100000}`,
+            title: isRealOcr ? `สลิปโอนเงินจริง (SlipOK)` : `สลิปโอนเงิน (LINE Bot OCR)`,
+            ref: slipRef,
             amount: slipAmount,
-            merchant: "ธนาคารกสิกรไทย (KBank)",
+            merchant: slipMerchant,
             category: "รายได้จากการขาย",
-            sender: "ลูกค้าทางไลน์",
+            sender: slipSender,
             status: "archived",
-            details: `บันทึกอัตโนมัติจาก LINE Bot จริง`
+            details: isRealOcr ? `สแกนสลิปจริงสำเร็จทาง LINE` : `บันทึกอัตโนมัติจาก LINE Bot (สุ่มยอดเงิน)`
           };
 
           const newTx = {
@@ -125,11 +200,13 @@ export default async function handler(req, res) {
             type: "income",
             category: "รายได้จากการขาย",
             amount: slipAmount,
-            description: `LINE Bot OCR: KBank (โอนเงินสำเร็จ)`,
-            ref: newDoc.ref
+            description: isRealOcr ? `LINE Bot: โอนเงินจริงจาก ${slipSender}` : `LINE Bot OCR: ${slipMerchant} (โอนเงินสำเร็จ)`,
+            ref: slipRef
           };
 
-          const botReplyText = `✅ สแกนสลิปสำเร็จ!\n\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${newDoc.ref}\n\nระบบบันทึกบัญชีและสร้างไฟล์รายงาน PDF เรียบร้อยแล้วครับ`;
+          const botReplyText = isRealOcr
+            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\nผู้โอน: ${slipSender}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\nระบบบันทึกบัญชีเข้าคลัง Vercel เรียบร้อยแล้วครับ`
+            : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*หมายเหตุ: เนื่องจากยังไม่ได้กรอกคีย์ SlipOK ด้านบน ระบบจึงจำลองข้อมูลสุ่มขึ้นมาแทน`;
 
           const botMsg = {
             id: `m_line_bot_${Date.now()}`,
