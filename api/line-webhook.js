@@ -112,6 +112,17 @@ export default async function handler(req, res) {
           const slipokApiKey = settings.slipokApiKey;
           if (slipokApiKey && !slipokApiKey.startsWith("slipok_api_key_mock") && slipokApiKey.trim() !== "") {
             try {
+              // Parse SlipOK branch ID from settings
+              let branchId = "71669"; // user default fallback
+              if (settings.slipokBranchId && settings.slipokBranchId.trim() !== "") {
+                const match = settings.slipokBranchId.match(/(\d+)$/);
+                if (match) {
+                  branchId = match[1];
+                } else {
+                  branchId = settings.slipokBranchId.trim();
+                }
+              }
+
               // A. Download image from LINE Messaging API
               const lineImgUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
               const lineRes = await fetch(lineImgUrl, {
@@ -128,7 +139,7 @@ export default async function handler(req, res) {
                 const blob = new Blob([imageBuffer], { type: "image/jpeg" });
                 formData.append("files", blob, "slip.jpg");
 
-                const slipokRes = await fetch("https://api.slipok.com/api/v1/detect", {
+                const slipokRes = await fetch(`https://api.slipok.com/api/line/apikey/${branchId}`, {
                   method: "POST",
                   headers: {
                     "x-authorization": slipokApiKey

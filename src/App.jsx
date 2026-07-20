@@ -232,6 +232,8 @@ export default function App() {
       lineBotName: 'FlowLedger OCR Bot',
       lineChannelToken: 'channel_token_mock_1234567890abcdef',
       lineWebhookUrl: 'https://api.flowledger.pro/v1/webhook',
+      slipokApiKey: '',
+      slipokBranchId: '',
       lineBotActive: true,
       appName: 'FlowLedger Pro',
       appLogo: '✨'
@@ -421,6 +423,8 @@ export default function App() {
       lineBotName: 'FlowLedger OCR Bot',
       lineChannelToken: 'channel_token_mock_1234567890abcdef',
       lineWebhookUrl: 'https://api.flowledger.pro/v1/webhook',
+      slipokApiKey: '',
+      slipokBranchId: '',
       lineBotActive: true,
       appName: 'FlowLedger Pro',
       appLogo: '✨'
@@ -4421,6 +4425,20 @@ export default function App() {
                           />
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
                             * ลงทะเบียนรับคีย์เพื่อสแกนสลิปธนาคารจริงและดึงยอดเงินอัตโนมัติได้ที่ <a href="https://www.slipok.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>slipok.com</a>
+                          </span>
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label">SlipOK Branch ID (รหัสสาขาของร้านค้า)</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="กรอกรหัสสาขา เช่น 71669"
+                            value={settings.slipokBranchId || ''}
+                            onChange={(e) => setSettings(prev => ({ ...prev, slipokBranchId: e.target.value }))}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
+                            * ดูรหัสสาขาได้จากหน้าร้านค้าของคุณในแดชบอร์ด SlipOK (เช่น จากลิงก์ Webhook สำเร็จรูปตัวเลขท้ายสุด)
                           </span>
                         </div>
 
