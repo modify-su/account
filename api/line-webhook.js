@@ -19,6 +19,25 @@ if (getApps().length === 0) {
 }
 const db = getFirestore(app);
 
+function formatSlipDate(rawDate) {
+  if (!rawDate) return new Date().toISOString().split("T")[0];
+  const cleaned = String(rawDate).split("T")[0].replace(/[^0-9]/g, "");
+  if (cleaned.length === 8) {
+    let year = parseInt(cleaned.slice(0, 4), 10);
+    if (year > 2400) year -= 543;
+    return `${year}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
+  }
+  if (String(rawDate).includes("-")) {
+    const parts = String(rawDate).split("T")[0].split("-");
+    if (parts.length === 3) {
+      let year = parseInt(parts[0], 10);
+      if (year > 2400) year -= 543;
+      return `${year}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+  }
+  return new Date().toISOString().split("T")[0];
+}
+
 export default async function handler(req, res) {
   // Handle CORS and OPTIONS request
   if (req.method === "OPTIONS") {
@@ -200,7 +219,7 @@ export default async function handler(req, res) {
                     const d = ocrData.data;
                     slipAmount = parseFloat(d.amount) || slipAmount;
                     if (d.transDate) {
-                      slipDate = d.transDate.split("T")[0];
+                      slipDate = formatSlipDate(d.transDate);
                     }
                     slipTime = d.transTime || slipTime;
                     slipRef = d.refNo || slipRef;
