@@ -4404,6 +4404,10 @@ export default function App() {
                             value={settings.lineWebhookUrl}
                             onChange={(e) => setSettings(prev => ({ ...prev, lineWebhookUrl: e.target.value }))}
                           />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block', lineHeight: '1.4' }}>
+                            💡 สำหรับระบบ Vercel ของจริง ให้กรอก URL ต่อไปนี้ใน LINE Webhook URL: <br/>
+                            <code style={{ color: 'var(--primary)', fontWeight: 'bold', padding: '0.1rem 0.3rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '4px', wordBreak: 'break-all' }}>{window.location.origin}/api/line-webhook</code>
+                          </span>
                         </div>
 
                         <div className="form-group" style={{ marginTop: '2rem' }}>
