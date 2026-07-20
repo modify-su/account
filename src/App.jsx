@@ -3423,9 +3423,33 @@ export default function App() {
                     </tbody>
                   </table>
 
-                  <button type="button" className="btn btn-secondary mb-4" onClick={addInvoiceItemRow}>
-                    <Plus size={14} /> เพิ่มรายการใหม่
-                  </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <button type="button" className="btn btn-secondary" onClick={addInvoiceItemRow} style={{ margin: 0 }}>
+                      <Plus size={14} /> เพิ่มรายการใหม่
+                    </button>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.45rem 0.9rem', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>คำนวณภาษี (VAT):</span>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', color: 'var(--text-main)' }}>
+                        <input 
+                          type="radio" 
+                          name="invoice-vat-type" 
+                          checked={invoiceForm.vatRate === 7} 
+                          onChange={() => setInvoiceForm(prev => ({ ...prev, vatRate: 7 }))} 
+                        />
+                        มี VAT 7%
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', color: 'var(--text-main)' }}>
+                        <input 
+                          type="radio" 
+                          name="invoice-vat-type" 
+                          checked={invoiceForm.vatRate === 0} 
+                          onChange={() => setInvoiceForm(prev => ({ ...prev, vatRate: 0 }))} 
+                        />
+                        ไม่มี VAT (0%)
+                      </label>
+                    </div>
+                  </div>
 
                   <div className="invoice-summary-box">
                     {(() => {
@@ -3436,8 +3460,8 @@ export default function App() {
                             <span>ราคาก่อนภาษี (Subtotal):</span>
                             <span>฿{subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
                           </div>
-                          <div className="invoice-summary-line">
-                            <span>ภาษีมูลค่าเพิ่ม (VAT 7%):</span>
+                          <div className="invoice-summary-line" style={{ opacity: invoiceForm.vatRate === 0 ? 0.6 : 1 }}>
+                            <span>ภาษีมูลค่าเพิ่ม (VAT {invoiceForm.vatRate}%):</span>
                             <span>฿{vatAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
                           </div>
                           <div className="invoice-summary-line total">
@@ -5006,7 +5030,7 @@ export default function App() {
               <span>฿{printInvoiceData.subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="print-total-row">
-              <span>ภาษีมูลค่าเพิ่ม (VAT 7%):</span>
+              <span>ภาษีมูลค่าเพิ่ม (VAT {printInvoiceData.vatRate !== undefined ? printInvoiceData.vatRate : 7}%):</span>
               <span>฿{printInvoiceData.vatAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="print-total-row grand">
