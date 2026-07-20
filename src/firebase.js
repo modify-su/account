@@ -114,7 +114,7 @@ export const subscribeToCollection = (collectionName, onUpdate, fallbackData) =>
   const unsub = onSnapshot(colRef, (snapshot) => {
     const list = [];
     snapshot.forEach((doc) => {
-      list.push({ id: doc.id, ...doc.data() });
+      list.push({ ...doc.data(), id: doc.id });
     });
     
     // Auto-migration & Seeding: If Firestore is empty, upload local data or seed defaults (for users)

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, limit, query } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, limit, query, doc, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBqLwYJ9m8VZxLHprterX_o-0AiAR9kSAM",
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
             text: userText,
             time: new Date().toTimeString().split(" ")[0].slice(0, 5)
           };
-          await addDoc(collection(db, "chat_messages"), userMsg);
+          await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
 
           // 2. Generate bot reply
           let botReplyText = `รับทราบข้อความ: "${userText}" ครับ\n\nสามารถส่งรูปสลิปเพื่อบันทึกบัญชีอัตโนมัติได้เลยครับ`;
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
             text: botReplyText,
             time: new Date().toTimeString().split(" ")[0].slice(0, 5)
           };
-          await addDoc(collection(db, "chat_messages"), botMsg);
+          await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
 
           // 3. Reply to user on LINE
           await sendLineReply(replyToken, botReplyText, channelToken);
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
             isImage: true,
             time: new Date().toTimeString().split(" ")[0].slice(0, 5)
           };
-          await addDoc(collection(db, "chat_messages"), userMsg);
+          await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
 
           // Default mock values as fallback
           let slipAmount = Math.floor(Math.random() * 2000) + 150;
@@ -288,9 +288,9 @@ export default async function handler(req, res) {
           };
 
           // Save to Firestore collections
-          await addDoc(collection(db, "documents"), newDoc);
-          await addDoc(collection(db, "transactions"), newTx);
-          await addDoc(collection(db, "chat_messages"), botMsg);
+          await setDoc(doc(db, "documents", newDoc.id), newDoc);
+          await setDoc(doc(db, "transactions", newTx.id), newTx);
+          await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
 
           // Reply to user on LINE
           await sendLineReply(replyToken, botReplyText, channelToken);
