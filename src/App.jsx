@@ -349,7 +349,7 @@ export default function App() {
 
   // Filtering general ledger state
   const [filterType, setFilterType] = useState('all');
-  const [filterTime, setFilterTime] = useState('month'); // week, month, year, custom
+  const [filterTime, setFilterTime] = useState('today'); // today, week, month, year, custom
   const [filterSearch, setFilterSearch] = useState('');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -1696,7 +1696,15 @@ export default function App() {
 
       const txDate = new Date(t.date);
       const today = new Date();
-      if (filterTime === 'week') {
+      if (filterTime === 'today') {
+        const todayStr = new Date().toLocaleDateString('sv-SE');
+        const isSameDay = (
+          txDate.getFullYear() === today.getFullYear() &&
+          txDate.getMonth() === today.getMonth() &&
+          txDate.getDate() === today.getDate()
+        );
+        return isSameDay || t.date === todayStr;
+      } else if (filterTime === 'week') {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(today.getDate() - 7);
         return txDate >= oneWeekAgo && txDate <= today;
@@ -2502,10 +2510,11 @@ export default function App() {
               <div className="filter-bar" style={{ margin: 0 }}>
                 <div className="filter-pill-container" style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'rgba(255,255,255,0.03)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', alignItems: 'center' }}>
                   {[
-                    { value: 'all', label: 'ทั้งหมด' },
-                    { value: 'week', label: 'สัปดาห์นี้' },
+                    { value: 'today', label: '⚡ วันนี้ (วันต่อวัน)' },
                     { value: 'month', label: 'เดือนนี้' },
+                    { value: 'week', label: 'สัปดาห์นี้' },
                     { value: 'year', label: 'ปีนี้' },
+                    { value: 'all', label: 'ทั้งหมด' },
                     { value: 'custom', label: 'กำหนดเอง' }
                   ].map(pill => (
                     <button
@@ -2575,7 +2584,7 @@ export default function App() {
                   ฿{netBalance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                 </div>
                 <div className="summary-card-change up">
-                  <TrendingUp size={14} /> รายการช่วงเวลาที่กรอง
+                  <TrendingUp size={14} /> {filterTime === 'today' ? '⚡ ข้อมูลเรียลไทม์ (ประจำวันนี้)' : filterTime === 'month' ? '📅 ข้อมูลประจำเดือนนี้' : filterTime === 'week' ? '📅 ข้อมูลประจำสัปดาห์นี้' : filterTime === 'year' ? '📅 ข้อมูลประจำปีนี้' : filterTime === 'all' ? '📊 ข้อมูลสะสมทั้งหมด' : '🗓️ ข้อมูลช่วงเวลาที่กำหนด'}
                 </div>
               </div>
 
@@ -2588,7 +2597,7 @@ export default function App() {
                   ฿{totalIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                 </div>
                 <div className="summary-card-change up">
-                  รวมรายรับของออฟฟิศทั้งหมด
+                  {filterTime === 'today' ? '🟢 รายรับเรียลไทม์ของวันนี้' : 'รวมรายรับของออฟฟิศทั้งหมด'}
                 </div>
               </div>
 
