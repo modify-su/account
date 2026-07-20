@@ -1652,6 +1652,10 @@ export default function App() {
   };
 
   const deleteTransaction = (id) => {
+    if (currentUser.role !== 'admin') {
+      alert('ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้');
+      return;
+    }
     if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
       if (isFirebaseConfigured()) {
         deleteDocFromCloud('transactions', id);
@@ -1662,6 +1666,10 @@ export default function App() {
   };
 
   const openEditModal = (tx) => {
+    if (currentUser.role !== 'admin') {
+      alert('ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้');
+      return;
+    }
     setEditingTransaction(tx);
     setTxForm({
       type: tx.type,
@@ -3048,7 +3056,7 @@ export default function App() {
                       <th>รหัสอ้างอิง</th>
                       <th>ประเภท</th>
                       <th className="text-right">จำนวนเงิน</th>
-                      <th className="text-center" style={{ width: '120px' }}>การจัดการ</th>
+                      {currentUser.role === 'admin' && <th className="text-center" style={{ width: '120px' }}>การจัดการ</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -3067,17 +3075,19 @@ export default function App() {
                           <td className={`text-right font-bold ${tx.type === 'income' ? 'text-success' : 'text-danger'}`}>
                             {tx.type === 'income' ? '+' : '-'}฿{tx.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="text-center">
-                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                              <button className="btn btn-secondary" onClick={() => openEditModal(tx)} style={{ padding: '0.35rem 0.5rem' }}>แก้ไข</button>
-                              <button className="btn btn-danger" onClick={() => deleteTransaction(tx.id)} style={{ padding: '0.35rem 0.5rem' }}><Trash2 size={14} /></button>
-                            </div>
-                          </td>
+                          {currentUser.role === 'admin' && (
+                            <td className="text-center">
+                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                <button className="btn btn-secondary" onClick={() => openEditModal(tx)} style={{ padding: '0.35rem 0.5rem' }}>แก้ไข</button>
+                                <button className="btn btn-danger" onClick={() => deleteTransaction(tx.id)} style={{ padding: '0.35rem 0.5rem' }}><Trash2 size={14} /></button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="text-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
+                        <td colSpan={currentUser.role === 'admin' ? 7 : 6} className="text-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
                           ไม่พบข้อมูลประวัติบัญชี
                         </td>
                       </tr>
