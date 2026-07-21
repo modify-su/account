@@ -264,8 +264,19 @@ export default async function handler(req, res) {
                       slipReceiver = d.receiver.displayName || d.receiver.name;
                     }
 
-                    // Smart Income vs Expense Classification (only if caption didn't explicitly override)
-                    if (!captionText) {
+                    let slipMemo = "";
+                    if (d.memo || d.note || d.remark || d.comment) {
+                      slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
+                    }
+
+                    // Check if slip memo or caption contains keywords for category classification
+                    const memoOrCaption = captionText ? `${captionText} ${slipMemo}` : slipMemo;
+                    if (memoOrCaption) {
+                      const detected = detectCategory(memoOrCaption, isIncome);
+                      category = detected.category;
+                      isIncome = detected.isIncome;
+                    } else if (!captionText) {
+                      // Smart Income vs Expense Classification fallback
                       const compName = (settings.companyName || "").toLowerCase().trim();
                       const sName = slipSender.toLowerCase();
                       const rName = slipReceiver.toLowerCase();
@@ -346,6 +357,7 @@ export default async function handler(req, res) {
           await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
 
           const docId = `doc-${Date.now()}`;
+          let descMemo = slipMemo ? ` (ความจำ: ${slipMemo})` : (captionText ? ` (${captionText})` : "");
           
           const newDoc = {
             id: docId,
@@ -364,8 +376,8 @@ export default async function handler(req, res) {
             imageUrl: base64Image,
             status: "archived",
             details: isRealOcr 
-              ? `สแกนสลิปจริงสำเร็จทาง LINE (${isIncome ? 'รายรับ' : 'รายจ่าย'})`
-              : `บันทึกอัตโนมัติจาก LINE Bot (สุ่มยอดเงิน)`
+              ? `สแกนสลิปจริงสำเร็จทาง LINE (${isIncome ? 'รายรับ' : 'รายจ่าย'})${descMemo}`
+              : `บันทึกอัตโนมัติจาก LINE Bot${descMemo}`
           };
 
           const newTx = {
@@ -375,15 +387,16 @@ export default async function handler(req, res) {
             category: category,
             amount: slipAmount,
             description: isRealOcr 
-              ? (isIncome ? `LINE Bot [${category}]: จาก ${slipSender}` : `LINE Bot [${category}]: ให้ ${slipReceiver}`)
-              : `LINE Bot OCR [${category}]: ${slipMerchant} (โอนเงินสำเร็จ)`,
+              ? (isIncome ? `LINE Bot [${category}]: จาก ${slipSender}${descMemo}` : `LINE Bot [${category}]: ให้ ${slipReceiver}${descMemo}`)
+              : `LINE Bot OCR [${category}]: ${slipMerchant}${descMemo}`,
             ref: slipRef,
             imageUrl: base64Image
           };
 
+          let memoLine = slipMemo ? `\n📝 บันทึกความจำ: ${slipMemo}` : (captionText ? `\n📝 บันทึกความจำ: ${captionText}` : "");
           const botReplyText = isRealOcr
-            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ (เงินเข้า)' : '🔴 รายจ่าย (เงินออก)'}\n🏷️ หมวดหมู่: ${category}\n👤 ${isIncome ? 'ผู้โอน' : 'ผู้รับเงิน'}: ${isIncome ? slipSender : slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`
-            : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ' : '🔴 รายจ่าย'}\n🏷️ หมวดหมู่: ${category}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ (เงินเข้า)' : '🔴 รายจ่าย (เงินออก)'}\n🏷️ หมวดหมู่: ${category}${memoLine}\n👤 ${isIncome ? 'ผู้โอน' : 'ผู้รับเงิน'}: ${isIncome ? slipSender : slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`
+            : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ' : '🔴 รายจ่าย'}\n🏷️ หมวดหมู่: ${category}${memoLine}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
 
           const botMsg = {
             id: `m_line_bot_${Date.now()}`,
