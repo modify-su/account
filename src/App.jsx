@@ -4008,29 +4008,58 @@ export default function App() {
 
             {salarySubTab === 'overview' && (
               <div>
-                {/* Payroll Metrics */}
-                <div className="stats-grid mb-4">
-                  <div className="glass-card stat-card">
-                    <span className="stat-label">พนักงานทั้งหมด</span>
-                    <h2 className="stat-value text-primary">{salaries.length} คน</h2>
+                {/* Payroll Metrics Cards */}
+                <div className="summary-grid mb-4">
+                  <div className="glass-card summary-card balance">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">จำนวนพนักงานทั้งหมด</span>
+                      <div className="summary-card-icon"><FileText size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-primary">
+                      {salaries.length} คน
+                    </div>
+                    <div className="summary-card-change up">
+                      <TrendingUp size={14} /> ฐานข้อมูลพนักงานในระบบ
+                    </div>
                   </div>
-                  <div className="glass-card stat-card">
-                    <span className="stat-label">ยอดฐานเงินเดือนรวมต่อเดือน</span>
-                    <h2 className="stat-value text-success">
+
+                  <div className="glass-card summary-card income">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ฐานเงินเดือนรวมต่อเดือน</span>
+                      <div className="summary-card-icon"><ArrowUpRight size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-success">
                       ฿{salaries.reduce((sum, s) => sum + s.baseSalary, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </h2>
+                    </div>
+                    <div className="summary-card-change up">
+                      🟢 งบประมาณฐานเงินเดือนประจำเดือน
+                    </div>
                   </div>
-                  <div className="glass-card stat-card">
-                    <span className="stat-label">รวมเงินช่วยเหลือ/โบนัสเฉลี่ย</span>
-                    <h2 className="stat-value" style={{ color: '#E2F1AF' }}>
+
+                  <div className="glass-card summary-card vat">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">รวมสวัสดิการ & เบี้ยเลี้ยง</span>
+                      <div className="summary-card-icon"><Wallet size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-warning">
                       ฿{salaries.reduce((sum, s) => sum + s.allowance, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </h2>
+                    </div>
+                    <div className="summary-card-change up">
+                      🟡 โบนัส ค่าล่วงเวลา และสวัสดิการรวม
+                    </div>
                   </div>
-                  <div className="glass-card stat-card">
-                    <span className="stat-label">ยอดหักลดหย่อนเฉลี่ยสะสม</span>
-                    <h2 className="stat-value text-danger">
+
+                  <div className="glass-card summary-card expense">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">รวมหักประกันสังคม & ภาษี</span>
+                      <div className="summary-card-icon"><ArrowDownRight size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-danger">
                       ฿{salaries.reduce((sum, s) => sum + (s.deductionSocial + s.deductionTax), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </h2>
+                    </div>
+                    <div className="summary-card-change down">
+                      🔴 ยอดนำส่งประกันสังคมและภาษี ณ ที่จ่าย
+                    </div>
                   </div>
                 </div>
 
@@ -4187,30 +4216,57 @@ export default function App() {
                   </div>
 
                   {/* Summary Cards */}
-                  <div className="stats-grid mb-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
-                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>รายการโอนเงิน</span>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--primary)' }}>
+                  <div className="summary-grid mb-4">
+                    <div className="glass-card summary-card balance">
+                      <div className="summary-card-header">
+                        <span className="summary-card-title">รายการโอนเงินสำเร็จ</span>
+                        <div className="summary-card-icon"><FileText size={18} /></div>
+                      </div>
+                      <div className="summary-card-value text-primary">
                         {filteredPayrollHistory.length} รายการ
-                      </h3>
+                      </div>
+                      <div className="summary-card-change up">
+                        <TrendingUp size={14} /> ประวัติการจ่ายเงินเดือนที่กรอง
+                      </div>
                     </div>
-                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
-                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>จ่ายเงินเดือนสุทธิรวม</span>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--success)' }}>
+
+                    <div className="glass-card summary-card income">
+                      <div className="summary-card-header">
+                        <span className="summary-card-title">จ่ายเงินเดือนสุทธิรวม</span>
+                        <div className="summary-card-icon"><ArrowUpRight size={18} /></div>
+                      </div>
+                      <div className="summary-card-value text-success">
                         ฿{filteredPayrollHistory.reduce((sum, h) => sum + h.netPaid, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                      </h3>
+                      </div>
+                      <div className="summary-card-change up">
+                        🟢 ยอดเงินโอนสุทธิที่พนักงานได้รับจริง
+                      </div>
                     </div>
-                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
-                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>ประกันสังคมรวม</span>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--warning)' }}>
+
+                    <div className="glass-card summary-card vat">
+                      <div className="summary-card-header">
+                        <span className="summary-card-title">ประกันสังคมรวม</span>
+                        <div className="summary-card-icon"><Wallet size={18} /></div>
+                      </div>
+                      <div className="summary-card-value text-warning">
                         ฿{filteredPayrollHistory.reduce((sum, h) => sum + h.deductionSocial, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                      </h3>
+                      </div>
+                      <div className="summary-card-change up">
+                        🟡 ยอดหักประกันสังคมนำส่ง
+                      </div>
                     </div>
-                    <div className="glass-card stat-card" style={{ padding: '0.75rem 1rem' }}>
-                      <span className="stat-label" style={{ fontSize: '0.75rem' }}>ภาษี ณ ที่จ่ายรวม</span>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.2rem 0 0 0', color: 'var(--warning)' }}>
+
+                    <div className="glass-card summary-card expense">
+                      <div className="summary-card-header">
+                        <span className="summary-card-title">ภาษี ณ ที่จ่ายรวม</span>
+                        <div className="summary-card-icon"><ArrowDownRight size={18} /></div>
+                      </div>
+                      <div className="summary-card-value text-danger">
                         ฿{filteredPayrollHistory.reduce((sum, h) => sum + h.deductionTax, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                      </h3>
+                      </div>
+                      <div className="summary-card-change down">
+                        🔴 ยอดภาษีหัก ณ ที่จ่ายสะสม
+                      </div>
                     </div>
                   </div>
 
