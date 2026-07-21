@@ -167,6 +167,7 @@ export default async function handler(req, res) {
           let slipMerchant = "ธนาคารกสิกรไทย (KBank)";
           let isRealOcr = false;
           let base64Image = null;
+          let slipMemo = "";
 
           // Try real OCR via SlipOK if key exists
           const slipokApiKey = settings.slipokApiKey;
@@ -264,7 +265,6 @@ export default async function handler(req, res) {
                       slipReceiver = d.receiver.displayName || d.receiver.name;
                     }
 
-                    let slipMemo = "";
                     if (d.memo || d.note || d.remark || d.comment) {
                       slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
                     }

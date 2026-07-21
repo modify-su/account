@@ -1242,6 +1242,79 @@ export default function App() {
     }
   };
 
+  const handleExportFullBackup = () => {
+    try {
+      const fullBackupObj = {
+        backupDate: new Date().toISOString(),
+        version: "1.0",
+        appName: "FlowLedger Financial System",
+        settings: settings,
+        users: users,
+        transactions: transactions,
+        documents: documents, // contains doc.imageUrl base64 slip images!
+        products: products,
+        salaries: salaries,
+        payrollHistory: payrollHistory,
+        chatMessages: chatMessages
+      };
+
+      const jsonStr = JSON.stringify(fullBackupObj, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute("href", url);
+      link.setAttribute("download", `flowledger_full_backup_with_images_${dateStr}.json`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      alert(`✅ สำรองข้อมูลทั้งระบบพร้อมรูปภาพสลิปทั้งหมดเรียบร้อยแล้ว!\n(บันทึกเอกสาร ${documents.length} รายการ, ธุรกรรม ${transactions.length} รายการ)`);
+    } catch (err) {
+      alert("❌ เกิดข้อผิดพลาดในการสำรองข้อมูล: " + err.message);
+    }
+  };
+
+  const handleImportFullBackup = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const backupData = JSON.parse(text);
+
+        if (!backupData || typeof backupData !== 'object') {
+          throw new Error("โครงสร้างไฟล์ JSON ไม่ถูกต้อง");
+        }
+
+        const dateFormatted = backupData.backupDate ? new Date(backupData.backupDate).toLocaleString('th-TH') : 'ไม่ระบุ';
+        const docCount = backupData.documents ? backupData.documents.length : 0;
+        const txCount = backupData.transactions ? backupData.transactions.length : 0;
+
+        if (window.confirm(`📥 พบไฟล์สำรองข้อมูลลงวันที่ ${dateFormatted}\n\n• รายการเดินบัญชี: ${txCount} รายการ\n• คลังเอกสาร & สลิป: ${docCount} ไฟล์\n\nต้องการนำเข้าข้อมูลและคืนค่าระบบทั้งหมด (รวมถึงรูปภาพสลิป) หรือไม่?`)) {
+          if (Array.isArray(backupData.transactions)) setTransactions(backupData.transactions);
+          if (Array.isArray(backupData.documents)) setDocuments(backupData.documents);
+          if (Array.isArray(backupData.products)) setProducts(backupData.products);
+          if (Array.isArray(backupData.salaries)) setSalaries(backupData.salaries);
+          if (Array.isArray(backupData.payrollHistory)) setPayrollHistory(backupData.payrollHistory);
+          if (Array.isArray(backupData.users)) setUsers(backupData.users);
+          if (Array.isArray(backupData.chatMessages)) setChatMessages(backupData.chatMessages);
+          if (backupData.settings && typeof backupData.settings === 'object') setSettings(backupData.settings);
+
+          alert("🎉 คืนค่าระบบ ข้อมูลบัญชี และรูปภาพสลิปทั้งหมดเข้าสู่ระบบสำเร็จเรียบร้อยแล้ว!");
+        }
+      } catch (err) {
+        alert("❌ ไม่สามารถนำเข้าไฟล์สำรองได้: " + err.message);
+      }
+      e.target.value = ''; // Reset file input
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
   const handleCSVImport = (e, dataType) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -4881,6 +4954,25 @@ export default function App() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Import Full System Backup */}
+                        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px dashed var(--primary)', borderRadius: '8px', padding: '1rem' }}>
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--primary)' }}>3. คืนค่าระบบจากไฟล์สำรอง (Full Backup JSON)</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label className="btn btn-primary" style={{ cursor: 'pointer', display: 'inline-flex', justifyContent: 'center', margin: 0 }}>
+                              📥 เลือกไฟล์ JSON สำรองข้อมูล (.json)
+                              <input 
+                                type="file" 
+                                accept=".json" 
+                                style={{ display: 'none' }} 
+                                onChange={handleImportFullBackup}
+                              />
+                            </label>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                              * คืนค่ารูปภาพสลิป รายการเดินบัญชี สินค้าคลัง และการตั้งค่าทั้งหมดกลับสู่ระบบ
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Right: Export Section */}
@@ -4890,7 +4982,7 @@ export default function App() {
                             📤 ส่งออกข้อมูล (Export Center)
                           </h3>
                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            เลือกประเภทชุดข้อมูลที่ต้องการเพื่อสร้างไฟล์รายงานดาวน์โหลดไปใช้งานต่อในโปรแกรมอื่น เช่น Excel หรือพิมพ์รายงาน PDF
+                            เลือกประเภทชุดข้อมูลที่ต้องการเพื่อสร้างไฟล์รายงานดาวน์โหลดไปใช้งานต่อในโปรแกรมอื่น หรือสำรองข้อมูลทั้งระบบพร้อมภาพสลิป
                           </p>
                         </div>
 
@@ -4931,6 +5023,19 @@ export default function App() {
                           >
                             🔴 ส่งออกรายงานและบันทึกเป็น PDF (.pdf)
                           </button>
+
+                          <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '0.5rem 0' }} />
+
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ justifyContent: 'center', padding: '0.85rem 1rem', fontSize: '0.85rem', fontWeight: 'bold', backgroundColor: 'var(--primary)' }}
+                            onClick={handleExportFullBackup}
+                          >
+                            💾 สำรองข้อมูลทั้งระบบพร้อมรูปภาพสลิปทั้งหมด (.json)
+                          </button>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: '1.4' }}>
+                            * ดาวน์โหลดไฟล์ JSON สำรองข้อมูลการเงิน สินค้า พนักงาน และภาพสลิป Base64 ครบถ้วน
+                          </span>
                         </div>
                       </div>
 
