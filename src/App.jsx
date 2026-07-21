@@ -1972,6 +1972,17 @@ export default function App() {
     return path;
   };
 
+  const getAreaPath = (points) => {
+    if (points.length === 0) return '';
+    if (points.length === 1) {
+      return `M 55,${points[0].y} L 520,${points[0].y} L 520,175 L 55,175 Z`;
+    }
+    const curve = getCurvePath(points);
+    const firstPt = points[0];
+    const lastPt = points[points.length - 1];
+    return `${curve} L ${lastPt.x},175 L ${firstPt.x},175 Z`;
+  };
+
   // --- LINE BOT INTERACTIVE SIMULATOR ---
   const handleLineSendMessage = (text) => {
     const content = text || chatInput;
@@ -2826,20 +2837,26 @@ export default function App() {
             <div className="charts-grid">
               <div className="glass-card">
                 <div className="chart-card-header">
-                  <span className="chart-card-title">แนวโน้มรายรับ-รายจ่าย</span>
+                  <div>
+                    <span className="chart-card-title" style={{ fontSize: '1.05rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      📈 แนวโน้มการเคลื่อนไหว (รายรับ / รายจ่าย)
+                    </span>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                      ปริมาณความถี่สะสมรายวันแยกตามประเภทกิจกรรม
+                    </p>
+                  </div>
                   <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--success)', borderRadius: '2px' }}></div>
-                      <span>รายรับ</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <div style={{ width: '12px', height: '12px', backgroundColor: '#2563eb', borderRadius: '50%' }}></div>
+                      <span style={{ fontWeight: '600' }}>รายรับ</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--danger)', borderRadius: '2px' }}></div>
-                      <span>รายจ่าย</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <div style={{ width: '12px', height: '12px', backgroundColor: '#10b981', borderRadius: '50%' }}></div>
+                      <span style={{ fontWeight: '600' }}>รายจ่าย</span>
                     </div>
                   </div>
                 </div>
                 
-                {/* SVG Visualizer Chart */}
                 {/* SVG Visualizer Chart */}
                 <div className="svg-chart-container" style={{ position: 'relative', height: '270px' }}>
                   {(() => {
@@ -2882,6 +2899,8 @@ export default function App() {
 
                     const incomePath = getCurvePath(incomePoints);
                     const expensePath = getCurvePath(expensePoints);
+                    const incomeAreaPath = getAreaPath(incomePoints);
+                    const expenseAreaPath = getAreaPath(expensePoints);
 
                     const formatXAxisDate = (dateStr) => {
                       if (!dateStr) return '';
@@ -2913,23 +2932,26 @@ export default function App() {
                     return (
                       <svg width="100%" height="100%" viewBox="0 0 540 220" style={{ overflow: 'visible' }}>
                         <defs>
-                          {/* Premium drop shadows for chart lines */}
-                          <filter id="chart-glow-income" x="-10%" y="-10%" width="120%" height="120%">
-                            <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor="#10b981" floodOpacity="0.22" />
-                          </filter>
-                          <filter id="chart-glow-expense" x="-10%" y="-10%" width="120%" height="120%">
-                            <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor="#f43f5e" floodOpacity="0.22" />
-                          </filter>
+                          {/* Area fill gradients */}
+                          <linearGradient id="area-grad-income" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.35" />
+                            <stop offset="85%" stopColor="#3b82f6" stopOpacity="0.05" />
+                            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+                          </linearGradient>
+                          <linearGradient id="area-grad-expense" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.32" />
+                            <stop offset="85%" stopColor="#34d399" stopOpacity="0.05" />
+                            <stop offset="100%" stopColor="#34d399" stopOpacity="0.0" />
+                          </linearGradient>
 
                           {/* Line gradients */}
                           <linearGradient id="line-grad-income" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#10b981" />
-                            <stop offset="100%" stopColor="#34d399" />
+                            <stop offset="0%" stopColor="#2563eb" />
+                            <stop offset="100%" stopColor="#3b82f6" />
                           </linearGradient>
                           <linearGradient id="line-grad-expense" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#f43f5e" />
-                            <stop offset="50%" stopColor="#ec4899" />
-                            <stop offset="100%" stopColor="#f59e0b" />
+                            <stop offset="0%" stopColor="#059669" />
+                            <stop offset="100%" stopColor="#10b981" />
                           </linearGradient>
                         </defs>
 
@@ -2938,14 +2960,20 @@ export default function App() {
                         <line x1="55" y1="58.75" x2="520" y2="58.75" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
                         <line x1="55" y1="97.5" x2="520" y2="97.5" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
                         <line x1="55" y1="136.25" x2="520" y2="136.25" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
-                        <line x1="55" y1="175" x2="520" y2="175" stroke="var(--border-color)" strokeWidth="1.5" opacity="0.8" />
 
-                        {/* Y-Axis Labels (inside SVG, scales proportionally, does not stretch!) */}
-                        <text x="45" y="24" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal).toLocaleString('th-TH')}</text>
-                        <text x="45" y="62.75" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal * 0.75).toLocaleString('th-TH')}</text>
-                        <text x="45" y="101.5" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal * 0.5).toLocaleString('th-TH')}</text>
-                        <text x="45" y="140.25" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">฿{Math.round(chartMaxVal * 0.25).toLocaleString('th-TH')}</text>
-                        <text x="45" y="179" textAnchor="end" fontSize="0.68rem" fontWeight="700" fill="var(--text-muted)">0.00</text>
+                        {/* Y-Axis Labels */}
+                        <text x="45" y="24" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal).toLocaleString('th-TH')}</text>
+                        <text x="45" y="62.75" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.75).toLocaleString('th-TH')}</text>
+                        <text x="45" y="101.5" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.5).toLocaleString('th-TH')}</text>
+                        <text x="45" y="140.25" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.25).toLocaleString('th-TH')}</text>
+                        <text x="45" y="179" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">0</text>
+
+                        {/* Area Gradient Fills under spline curves */}
+                        <path d={incomeAreaPath} fill="url(#area-grad-income)" />
+                        <path d={expenseAreaPath} fill="url(#area-grad-expense)" />
+
+                        {/* Red Baseline at y=175 */}
+                        <line x1="55" y1="175" x2="520" y2="175" stroke="#ef4444" strokeWidth="2" />
 
                         {/* Hover vertical guideline */}
                         {hoveredIndex !== null && incomePoints[hoveredIndex] && (
@@ -2962,8 +2990,8 @@ export default function App() {
                         )}
 
                         {/* Chart lines */}
-                        <path d={incomePath} fill="none" stroke="url(#line-grad-income)" strokeWidth="4.5" strokeLinecap="round" filter="url(#chart-glow-income)" />
-                        <path d={expensePath} fill="none" stroke="url(#line-grad-expense)" strokeWidth="4.5" strokeLinecap="round" filter="url(#chart-glow-expense)" />
+                        <path d={incomePath} fill="none" stroke="url(#line-grad-income)" strokeWidth="3.5" strokeLinecap="round" />
+                        <path d={expensePath} fill="none" stroke="url(#line-grad-expense)" strokeWidth="3.5" strokeLinecap="round" />
 
                         {/* Data labels and dots for Income */}
                         {incomePoints.map((p, idx) => (
