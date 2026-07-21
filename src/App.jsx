@@ -1975,12 +1975,12 @@ export default function App() {
   const getAreaPath = (points) => {
     if (points.length === 0) return '';
     if (points.length === 1) {
-      return `M 55,${points[0].y} L 520,${points[0].y} L 520,175 L 55,175 Z`;
+      return `M 55,${points[0].y} L 870,${points[0].y} L 870,200 L 55,200 Z`;
     }
     const curve = getCurvePath(points);
     const firstPt = points[0];
     const lastPt = points[points.length - 1];
-    return `${curve} L ${lastPt.x},175 L ${firstPt.x},175 Z`;
+    return `${curve} L ${lastPt.x},200 L ${firstPt.x},200 Z`;
   };
 
   // --- LINE BOT INTERACTIVE SIMULATOR ---
@@ -2836,29 +2836,21 @@ export default function App() {
             {/* Charts & Categorized Spending */}
             <div className="charts-grid">
               <div className="glass-card">
-                <div className="chart-card-header">
-                  <div>
-                    <span className="chart-card-title" style={{ fontSize: '1.05rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      📈 แนวโน้มการเคลื่อนไหว (รายรับ / รายจ่าย)
-                    </span>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
-                      ปริมาณความถี่สะสมรายวันแยกตามประเภทกิจกรรม
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem' }}>
+                <div className="chart-card-header" style={{ marginBottom: '0.75rem', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.85rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <div style={{ width: '12px', height: '12px', backgroundColor: '#2563eb', borderRadius: '50%' }}></div>
-                      <span style={{ fontWeight: '600' }}>รายรับ</span>
+                      <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>รายรับ</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <div style={{ width: '12px', height: '12px', backgroundColor: '#10b981', borderRadius: '50%' }}></div>
-                      <span style={{ fontWeight: '600' }}>รายจ่าย</span>
+                      <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>รายจ่าย</span>
                     </div>
                   </div>
                 </div>
                 
                 {/* SVG Visualizer Chart */}
-                <div className="svg-chart-container" style={{ position: 'relative', height: '270px' }}>
+                <div className="svg-chart-container" style={{ position: 'relative', height: '320px' }}>
                   {(() => {
                     const chartTxs = [...filteredTxs].sort((a, b) => new Date(a.date) - new Date(b.date));
                     const dateMap = {};
@@ -2876,20 +2868,20 @@ export default function App() {
                       );
                     }
 
-                    // Compute points coordinates inside SVG viewBox 540x220
-                    // grid x ranges from 55 to 520 (width = 465)
-                    // grid y ranges from 20 to 175 (height = 155)
+                    // Compute points coordinates inside SVG viewBox 850x250
+                    // grid x ranges from 55 to 820 (width = 765)
+                    // grid y ranges from 20 to 200 (height = 180)
                     const getPoints = (type) => {
                       if (dates.length === 1) {
-                        const y = 175 - (dateMap[dates[0]][type] / chartMaxVal) * 155;
+                        const y = 200 - (dateMap[dates[0]][type] / chartMaxVal) * 180;
                         return [
                           { x: 55, y, date: dates[0], value: dateMap[dates[0]][type] },
-                          { x: 520, y, date: dates[0], value: dateMap[dates[0]][type] }
+                          { x: 820, y, date: dates[0], value: dateMap[dates[0]][type] }
                         ];
                       }
                       return dates.map((d, index) => {
-                        const x = 55 + (index / (dates.length - 1)) * 465;
-                        const y = 175 - (dateMap[d][type] / chartMaxVal) * 155;
+                        const x = 55 + (index / (dates.length - 1)) * 765;
+                        const y = 200 - (dateMap[d][type] / chartMaxVal) * 180;
                         return { x, y, date: d, value: dateMap[d][type], index };
                       });
                     };
@@ -2923,14 +2915,14 @@ export default function App() {
                     };
 
                     const shouldShowLabel = (index, total) => {
-                      if (total <= 8) return true;
-                      if (total <= 15) return index % 2 === 0;
-                      if (total <= 25) return index % 4 === 0;
+                      if (total <= 12) return true;
+                      if (total <= 20) return index % 2 === 0;
+                      if (total <= 35) return index % 3 === 0;
                       return index % 5 === 0 || index === total - 1;
                     };
 
                     return (
-                      <svg width="100%" height="100%" viewBox="0 0 540 220" style={{ overflow: 'visible' }}>
+                      <svg width="100%" height="100%" viewBox="0 0 850 250" style={{ overflow: 'visible' }}>
                         <defs>
                           {/* Area fill gradients */}
                           <linearGradient id="area-grad-income" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -2956,24 +2948,24 @@ export default function App() {
                         </defs>
 
                         {/* Grid lines */}
-                        <line x1="55" y1="20" x2="520" y2="20" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
-                        <line x1="55" y1="58.75" x2="520" y2="58.75" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
-                        <line x1="55" y1="97.5" x2="520" y2="97.5" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
-                        <line x1="55" y1="136.25" x2="520" y2="136.25" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+                        <line x1="55" y1="20" x2="820" y2="20" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.25" />
+                        <line x1="55" y1="65" x2="820" y2="65" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.25" />
+                        <line x1="55" y1="110" x2="820" y2="110" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.25" />
+                        <line x1="55" y1="155" x2="820" y2="155" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3,3" opacity="0.25" />
 
                         {/* Y-Axis Labels */}
-                        <text x="45" y="24" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal).toLocaleString('th-TH')}</text>
-                        <text x="45" y="62.75" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.75).toLocaleString('th-TH')}</text>
-                        <text x="45" y="101.5" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.5).toLocaleString('th-TH')}</text>
-                        <text x="45" y="140.25" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.25).toLocaleString('th-TH')}</text>
-                        <text x="45" y="179" textAnchor="end" fontSize="0.68rem" fontWeight="600" fill="var(--text-muted)">0</text>
+                        <text x="45" y="24" textAnchor="end" fontSize="0.7rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal).toLocaleString('th-TH')}</text>
+                        <text x="45" y="69" textAnchor="end" fontSize="0.7rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.75).toLocaleString('th-TH')}</text>
+                        <text x="45" y="114" textAnchor="end" fontSize="0.7rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.5).toLocaleString('th-TH')}</text>
+                        <text x="45" y="159" textAnchor="end" fontSize="0.7rem" fontWeight="600" fill="var(--text-muted)">{Math.round(chartMaxVal * 0.25).toLocaleString('th-TH')}</text>
+                        <text x="45" y="204" textAnchor="end" fontSize="0.7rem" fontWeight="600" fill="var(--text-muted)">0</text>
 
                         {/* Area Gradient Fills under spline curves */}
                         <path d={incomeAreaPath} fill="url(#area-grad-income)" />
                         <path d={expenseAreaPath} fill="url(#area-grad-expense)" />
 
-                        {/* Red Baseline at y=175 */}
-                        <line x1="55" y1="175" x2="520" y2="175" stroke="#ef4444" strokeWidth="2" />
+                        {/* Red Baseline at y=200 */}
+                        <line x1="55" y1="200" x2="820" y2="200" stroke="#ef4444" strokeWidth="2" />
 
                         {/* Hover vertical guideline */}
                         {hoveredIndex !== null && incomePoints[hoveredIndex] && (
@@ -2981,7 +2973,7 @@ export default function App() {
                             x1={incomePoints[hoveredIndex].x}
                             y1="20"
                             x2={incomePoints[hoveredIndex].x}
-                            y2="175"
+                            y2="200"
                             stroke="var(--primary)"
                             strokeWidth="1.5"
                             strokeDasharray="4,4"
@@ -2999,8 +2991,33 @@ export default function App() {
                             {/* Hover value tooltip */}
                             {(hoveredIndex === idx || dates.length <= 10) && p.value > 0 && (
                               <g>
+                                <rect x={p.x - 25} y={p.y - 25} width="50" height="15" rx="3" fill="#2563eb" opacity="0.9" />
+                                <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize="0.65rem" fontWeight="800" fill="#ffffff">
+                                  {Math.round(p.value).toLocaleString('th-TH')}
+                                </text>
+                              </g>
+                            )}
+                            {/* Point Dot */}
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r={hoveredIndex === idx ? 6.5 : 4}
+                              fill="#ffffff"
+                              stroke="#2563eb"
+                              strokeWidth={hoveredIndex === idx ? 4 : 2.5}
+                              style={{ transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                            />
+                          </g>
+                        ))}
+
+                        {/* Data labels and dots for Expense */}
+                        {expensePoints.map((p, idx) => (
+                          <g key={`exp-${idx}`} style={{ pointerEvents: 'none' }}>
+                            {/* Hover value tooltip */}
+                            {(hoveredIndex === idx || dates.length <= 10) && p.value > 0 && (
+                              <g>
                                 <rect x={p.x - 25} y={p.y - 25} width="50" height="15" rx="3" fill="#10b981" opacity="0.9" />
-                                <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize="0.6rem" fontWeight="800" fill="#ffffff">
+                                <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize="0.65rem" fontWeight="800" fill="#ffffff">
                                   {Math.round(p.value).toLocaleString('th-TH')}
                                 </text>
                               </g>
@@ -3018,43 +3035,18 @@ export default function App() {
                           </g>
                         ))}
 
-                        {/* Data labels and dots for Expense */}
-                        {expensePoints.map((p, idx) => (
-                          <g key={`exp-${idx}`} style={{ pointerEvents: 'none' }}>
-                            {/* Hover value tooltip */}
-                            {(hoveredIndex === idx || dates.length <= 10) && p.value > 0 && (
-                              <g>
-                                <rect x={p.x - 25} y={p.y - 25} width="50" height="15" rx="3" fill="#f43f5e" opacity="0.9" />
-                                <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize="0.6rem" fontWeight="800" fill="#ffffff">
-                                  {Math.round(p.value).toLocaleString('th-TH')}
-                                </text>
-                              </g>
-                            )}
-                            {/* Point Dot */}
-                            <circle
-                              cx={p.x}
-                              cy={p.y}
-                              r={hoveredIndex === idx ? 6.5 : 4}
-                              fill="#ffffff"
-                              stroke="#f43f5e"
-                              strokeWidth={hoveredIndex === idx ? 4 : 2.5}
-                              style={{ transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-                            />
-                          </g>
-                        ))}
-
                         {/* X-Axis labels */}
                         {dates.map((d, idx) => {
                           if (!shouldShowLabel(idx, dates.length)) return null;
-                          const x = 55 + (idx / (dates.length - 1 || 1)) * 465;
+                          const x = 55 + (idx / (dates.length - 1 || 1)) * 765;
                           return (
                             <text
                               key={`x-lbl-${idx}`}
                               x={x}
-                              y="198"
+                              y="222"
                               textAnchor="middle"
-                              fontSize="0.7rem"
-                              fontWeight="700"
+                              fontSize="0.72rem"
+                              fontWeight="600"
                               fill="var(--text-muted)"
                             >
                               {formatXAxisDate(d)}
