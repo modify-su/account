@@ -7,6 +7,13 @@ import {
   deleteDoc, 
   setDoc 
 } from "firebase/firestore";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged
+} from "firebase/auth";
 
 // Default Hardcoded Firebase Configuration Fallback
 // วางค่า Firebase Config ของคุณที่นี่เพื่อให้แอปเชื่อมต่ออัตโนมัติทุกอุปกรณ์โดยไม่ต้องตั้งค่าในบราวเซอร์
@@ -65,6 +72,51 @@ export const initFirebase = () => {
     console.error("Firebase init error:", err);
     return null;
   }
+};
+
+// --- Firebase Authentication with Google ---
+let auth = null;
+let googleProvider = null;
+
+export const initAuth = () => {
+  const firebaseInstance = initFirebase();
+  if (!firebaseInstance || !firebaseInstance.app) return null;
+  if (!auth) {
+    auth = getAuth(firebaseInstance.app);
+    googleProvider = new GoogleAuthProvider();
+    googleProvider.addScope('email');
+    googleProvider.addScope('profile');
+  }
+  return auth;
+};
+
+export const signInWithGoogle = async () => {
+  const authInstance = initAuth();
+  if (!authInstance) {
+    throw new Error('Firebase ยังไม่ได้เชื่อมต่อ กรุณาตั้งค่า Firebase ก่อน');
+  }
+  const result = await signInWithPopup(authInstance, googleProvider);
+  const user = result.user;
+  return {
+    uid: user.uid,
+    name: user.displayName || 'Google User',
+    email: user.email,
+    avatar: user.photoURL || '',
+    provider: 'google'
+  };
+};
+
+export const signOutGoogle = async () => {
+  const authInstance = initAuth();
+  if (authInstance) {
+    await firebaseSignOut(authInstance);
+  }
+};
+
+export const onAuthChange = (callback) => {
+  const authInstance = initAuth();
+  if (!authInstance) return () => {};
+  return onAuthStateChanged(authInstance, callback);
 };
 
 const collectionKeyMap = {
