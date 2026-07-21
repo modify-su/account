@@ -38,6 +38,49 @@ function formatSlipDate(rawDate) {
   return new Date().toISOString().split("T")[0];
 }
 
+function detectCategory(text, defaultIsIncome) {
+  if (!text) return { category: defaultIsIncome ? "รายได้จากการขาย" : "ค่าใช้จ่ายทั่วไป", isIncome: defaultIsIncome };
+  
+  const raw = String(text).toLowerCase();
+  
+  if (raw.includes("เดินทาง") || raw.includes("รถ") || raw.includes("แท็กซี่") || raw.includes("ตั๋ว") || raw.includes("ทางด่วน") || raw.includes("น้ำมัน") || raw.includes("travel")) {
+    return { category: "ค่าเดินทางและยานพาหนะ", isIncome: false };
+  }
+  if (raw.includes("อาหาร") || raw.includes("เครื่องดื่ม") || raw.includes("กาแฟ") || raw.includes("ข้าว") || raw.includes("กิน") || raw.includes("food") || raw.includes("drink")) {
+    return { category: "ค่าอาหารและเครื่องดื่ม", isIncome: false };
+  }
+  if (raw.includes("อุปกรณ์") || raw.includes("กระดาษ") || raw.includes("เครื่องเขียน") || raw.includes("หมึก") || raw.includes("ของใช้") || raw.includes("office")) {
+    return { category: "ค่าอุปกรณ์สำนักงาน", isIncome: false };
+  }
+  if (raw.includes("เน็ต") || raw.includes("อินเทอร์เน็ต") || raw.includes("โทรศัพท์") || raw.includes("มือถือ") || raw.includes("wifi") || raw.includes("internet")) {
+    return { category: "ค่าอินเทอร์เน็ตและโทรศัพท์", isIncome: false };
+  }
+  if (raw.includes("เช่า") || raw.includes("ค่าเช่า") || raw.includes("rent")) {
+    return { category: "ค่าเช่าสถานที่", isIncome: false };
+  }
+  if (raw.includes("ไฟ") || raw.includes("น้ำ") || raw.includes("สาธารณูปโภค") || raw.includes("ค่าน้ำ") || raw.includes("ค่าไฟ") || raw.includes("utility")) {
+    return { category: "ค่าสาธารณูปโภค", isIncome: false };
+  }
+  if (raw.includes("ซ่อม") || raw.includes("บำรุง") || raw.includes("repair")) {
+    return { category: "ค่าซ่อมแซมและบำรุงรักษา", isIncome: false };
+  }
+  if (raw.includes("โฆษณา") || raw.includes("การตลาด") || raw.includes("ads") || raw.includes("marketing")) {
+    return { category: "ค่าโฆษณาและการตลาด", isIncome: false };
+  }
+  if (raw.includes("ขาย") || raw.includes("ยอดขาย") || raw.includes("ลูกค้าโอน") || raw.includes("sale")) {
+    return { category: "รายได้จากการขาย", isIncome: true };
+  }
+  if (raw.includes("บริการ") || raw.includes("ค่าบริการ") || raw.includes("service")) {
+    return { category: "รายได้จากการบริการ", isIncome: true };
+  }
+
+  if (raw.includes("จ่าย") || raw.includes("ค่า") || raw.includes("ชำระ") || raw.includes("ออก") || raw.includes("expense")) {
+    return { category: "ค่าใช้จ่ายทั่วไป", isIncome: false };
+  }
+
+  return { category: defaultIsIncome ? "รายได้จากการขาย" : "ค่าใช้จ่ายทั่วไป", isIncome: defaultIsIncome };
+}
+
 export default async function handler(req, res) {
   // Handle CORS and OPTIONS request
   if (req.method === "OPTIONS") {
@@ -108,15 +151,11 @@ export default async function handler(req, res) {
           // Handle slip image upload
           const messageId = message.id;
 
-          // 1. Save user image placeholder to Firestore chat_messages
-          const userMsg = {
-            id: `m_line_${Date.now()}`,
-            sender: "user",
-            text: "📷 ส่งรูปภาพสลิป",
-            isImage: true,
-            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
-          };
-          await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
+          // Check caption text if provided
+          let captionText = message.text || "";
+          let detected = detectCategory(captionText, true);
+          let isIncome = detected.isIncome;
+          let category = detected.category;
 
           // Default mock values as fallback
           let slipAmount = Math.floor(Math.random() * 2000) + 150;
@@ -127,17 +166,7 @@ export default async function handler(req, res) {
           let slipReceiver = "บริษัท";
           let slipMerchant = "ธนาคารกสิกรไทย (KBank)";
           let isRealOcr = false;
-          let isIncome = true; // Default: incoming payment (receipt)
-          let category = "รายได้จากการขาย";
-
-          // Check caption text if provided
-          if (message.text) {
-            const lowerText = message.text.toLowerCase();
-            if (lowerText.includes("จ่าย") || lowerText.includes("ค่า") || lowerText.includes("ชำระ") || lowerText.includes("ออก")) {
-              isIncome = false;
-              category = "ค่าใช้จ่ายทั่วไป";
-            }
-          }
+          let base64Image = null;
 
           // Try real OCR via SlipOK if key exists
           const slipokApiKey = settings.slipokApiKey;
@@ -180,6 +209,11 @@ export default async function handler(req, res) {
               if (lineRes.ok) {
                 const imageBuffer = await lineRes.arrayBuffer();
                 
+                if (imageBuffer && imageBuffer.byteLength > 0) {
+                  const base64Str = Buffer.from(imageBuffer).toString("base64");
+                  base64Image = `data:image/jpeg;base64,${base64Str}`;
+                }
+
                 try {
                   await addDoc(collection(db, "webhook_logs"), {
                     timestamp: new Date().toISOString(),
@@ -230,19 +264,21 @@ export default async function handler(req, res) {
                       slipReceiver = d.receiver.displayName || d.receiver.name;
                     }
 
-                    // Smart Income vs Expense Classification
-                    const compName = (settings.companyName || "").toLowerCase().trim();
-                    const sName = slipSender.toLowerCase();
-                    const rName = slipReceiver.toLowerCase();
+                    // Smart Income vs Expense Classification (only if caption didn't explicitly override)
+                    if (!captionText) {
+                      const compName = (settings.companyName || "").toLowerCase().trim();
+                      const sName = slipSender.toLowerCase();
+                      const rName = slipReceiver.toLowerCase();
 
-                    if (compName && compName.length > 2 && sName.includes(compName.slice(0, 4))) {
-                      // Our company is the sender -> Money paid out (Expense)
-                      isIncome = false;
-                      category = "ค่าใช้จ่ายทั่วไป";
-                    } else if (compName && compName.length > 2 && rName.includes(compName.slice(0, 4))) {
-                      // Our company is the receiver -> Money received (Income)
-                      isIncome = true;
-                      category = "รายได้จากการขาย";
+                      if (compName && compName.length > 2 && sName.includes(compName.slice(0, 4))) {
+                        // Our company is the sender -> Money paid out (Expense)
+                        isIncome = false;
+                        category = "ค่าใช้จ่ายทั่วไป";
+                      } else if (compName && compName.length > 2 && rName.includes(compName.slice(0, 4))) {
+                        // Our company is the receiver -> Money received (Income)
+                        isIncome = true;
+                        category = "รายได้จากการขาย";
+                      }
                     }
 
                     // Try to get bank info
@@ -298,6 +334,17 @@ export default async function handler(req, res) {
             } catch (e) {}
           }
 
+          // 1. Save user image placeholder to Firestore chat_messages
+          const userMsg = {
+            id: `m_line_${Date.now()}`,
+            sender: "user",
+            text: captionText ? `📷 สลิป: ${captionText}` : "📷 ส่งรูปภาพสลิป",
+            isImage: true,
+            imageUrl: base64Image,
+            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
+          };
+          await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
+
           const docId = `doc-${Date.now()}`;
           
           const newDoc = {
@@ -306,14 +353,15 @@ export default async function handler(req, res) {
             time: slipTime,
             type: isIncome ? "receipt" : "expense",
             title: isRealOcr 
-              ? (isIncome ? `สลิปโอนเงินเข้า (SlipOK)` : `สลิปโอนเงินออก (SlipOK)`)
-              : `สลิปโอนเงิน (LINE Bot OCR)`,
+              ? (isIncome ? `สลิปโอนเงินเข้า (${category})` : `สลิปโอนเงินออก (${category})`)
+              : `สลิปโอนเงิน (${category})`,
             ref: slipRef,
             amount: slipAmount,
             merchant: slipMerchant,
             category: category,
             sender: slipSender,
             receiver: slipReceiver,
+            imageUrl: base64Image,
             status: "archived",
             details: isRealOcr 
               ? `สแกนสลิปจริงสำเร็จทาง LINE (${isIncome ? 'รายรับ' : 'รายจ่าย'})`
@@ -327,14 +375,15 @@ export default async function handler(req, res) {
             category: category,
             amount: slipAmount,
             description: isRealOcr 
-              ? (isIncome ? `LINE Bot (รับเงิน): จาก ${slipSender}` : `LINE Bot (จ่ายเงิน): ให้ ${slipReceiver}`)
-              : `LINE Bot OCR: ${slipMerchant} (โอนเงินสำเร็จ)`,
-            ref: slipRef
+              ? (isIncome ? `LINE Bot [${category}]: จาก ${slipSender}` : `LINE Bot [${category}]: ให้ ${slipReceiver}`)
+              : `LINE Bot OCR [${category}]: ${slipMerchant} (โอนเงินสำเร็จ)`,
+            ref: slipRef,
+            imageUrl: base64Image
           };
 
           const botReplyText = isRealOcr
-            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ (เงินเข้า)' : '🔴 รายจ่าย (เงินออก)'}\n👤 ${isIncome ? 'ผู้โอน' : 'ผู้รับเงิน'}: ${isIncome ? slipSender : slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\nบันทึกเข้าระบบเรียบร้อยครับ`
-            : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*หมายเหตุ: เนื่องจากยังไม่ได้กรอกคีย์ SlipOK ด้านบน ระบบจึงจำลองข้อมูลสุ่มขึ้นมาแทน`;
+            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ (เงินเข้า)' : '🔴 รายจ่าย (เงินออก)'}\n🏷️ หมวดหมู่: ${category}\n👤 ${isIncome ? 'ผู้โอน' : 'ผู้รับเงิน'}: ${isIncome ? slipSender : slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`
+            : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ' : '🔴 รายจ่าย'}\n🏷️ หมวดหมู่: ${category}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
 
           const botMsg = {
             id: `m_line_bot_${Date.now()}`,

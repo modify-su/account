@@ -3174,7 +3174,20 @@ export default function App() {
                       filteredTxs.map((tx) => (
                         <tr key={tx.id}>
                           <td>{tx.date}</td>
-                          <td><div className="font-semibold">{tx.description}</div></td>
+                          <td>
+                            <div className="font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {tx.imageUrl && (
+                                <button 
+                                  onClick={() => setSelectedDoc(tx)} 
+                                  title="คลิกเพื่อดูรูปภาพสลิปที่แนบมา" 
+                                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--primary)', display: 'inline-flex', alignItems: 'center' }}
+                                >
+                                  <Image size={15} />
+                                </button>
+                              )}
+                              <span>{tx.description}</span>
+                            </div>
+                          </td>
                           <td style={{ color: 'var(--text-muted)' }}>{tx.category}</td>
                           <td><code>{tx.ref || '-'}</code></td>
                           <td>
@@ -3922,6 +3935,18 @@ export default function App() {
                         {doc.type === 'receipt' ? 'ใบเสร็จรับเงิน' : 'ใบกำกับภาษี'}
                       </span>
                     </div>
+
+                    {doc.imageUrl && (
+                      <div style={{ marginBottom: '0.75rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)', height: '160px', width: '100%', backgroundColor: '#090d16', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img 
+                          src={doc.imageUrl} 
+                          alt="Slip image" 
+                          style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', cursor: 'pointer' }}
+                          onClick={() => setSelectedDoc(doc)}
+                          title="คลิกเพื่อดูรูปภาพสลิปแบบขยายใหญ่"
+                        />
+                      </div>
+                    )}
                     
                     <div className="doc-hub-meta">
                       <div><strong>วันที่สแกน:</strong> {doc.date} {doc.time}</div>
@@ -5141,37 +5166,52 @@ export default function App() {
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
               
-              <div style={{ 
-                width: '240px', 
-                height: '300px', 
-                backgroundColor: '#ffffff', 
-                color: '#333333', 
-                borderRadius: '8px', 
-                padding: '1.25rem',
-                borderTop: '6px solid var(--primary)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                fontSize: '0.75rem'
-              }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '10px' }}>
-                    <span>{selectedDoc.merchant}</span>
-                    <span style={{ fontSize: '0.6rem', color: '#888' }}>OCR Verified</span>
+              {selectedDoc.imageUrl ? (
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: '100%', maxHeight: '450px', backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center' }}>
+                    <img 
+                      src={selectedDoc.imageUrl} 
+                      alt="สลิปโอนเงินจริง" 
+                      style={{ maxWidth: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '6px' }}
+                    />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div><strong>วันที่ธุรกรรม:</strong> {selectedDoc.date} {selectedDoc.time}</div>
-                    <div><strong>เลขอ้างอิง Ref:</strong> {selectedDoc.ref}</div>
-                    <div><strong>ผู้ดำเนินการ:</strong> {selectedDoc.sender}</div>
-                    <div><strong>รายละเอียด:</strong> {selectedDoc.details}</div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    <strong>หมวดหมู่:</strong> {selectedDoc.category || 'ทั่วไป'} | <strong>ยอดเงิน:</strong> ฿{selectedDoc.amount?.toLocaleString()} | <strong>Ref:</strong> {selectedDoc.ref}
                   </div>
                 </div>
-                <div style={{ textAlign: 'center', borderTop: '1px dashed #ccc', paddingTop: '8px' }}>
-                  <span style={{ fontSize: '0.6rem', color: '#888', display: 'block' }}>จำนวนเงิน (THB)</span>
-                  <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>฿{selectedDoc.amount.toLocaleString()}</strong>
+              ) : (
+                <div style={{ 
+                  width: '240px', 
+                  height: '300px', 
+                  backgroundColor: '#ffffff', 
+                  color: '#333333', 
+                  borderRadius: '8px', 
+                  padding: '1.25rem',
+                  borderTop: '6px solid var(--primary)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  fontSize: '0.75rem'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '10px' }}>
+                      <span>{selectedDoc.merchant}</span>
+                      <span style={{ fontSize: '0.6rem', color: '#888' }}>OCR Verified</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div><strong>วันที่ธุรกรรม:</strong> {selectedDoc.date} {selectedDoc.time}</div>
+                      <div><strong>เลขอ้างอิง Ref:</strong> {selectedDoc.ref}</div>
+                      <div><strong>ผู้ดำเนินการ:</strong> {selectedDoc.sender}</div>
+                      <div><strong>รายละเอียด:</strong> {selectedDoc.details}</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center', borderTop: '1px dashed #ccc', paddingTop: '8px' }}>
+                    <span style={{ fontSize: '0.6rem', color: '#888', display: 'block' }}>จำนวนเงิน (THB)</span>
+                    <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>฿{selectedDoc.amount?.toLocaleString()}</strong>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-primary" onClick={() => handlePrintDocInvoice(selectedDoc)} style={{ flexGrow: 1, justifyContent: 'center' }}>
