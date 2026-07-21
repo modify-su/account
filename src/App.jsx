@@ -2122,6 +2122,7 @@ export default function App() {
       buyerName: doc.type === 'receipt' ? settings.companyName : doc.sender,
       buyerTaxId: doc.type === 'receipt' ? settings.companyTaxId : '0205565000789',
       buyerAddress: doc.type === 'receipt' ? settings.companyAddress : 'ที่อยู่ผู้ชำระตามระบบสลิปโอน',
+      imageUrl: doc.imageUrl,
       items: [
         { name: `${doc.title} - ${doc.category}`, qty: 1, price: doc.amount / 1.07 }
       ],
@@ -5406,6 +5407,21 @@ export default function App() {
               <p style={{ marginTop: '10px' }}>ลงชื่อ ผู้รับเงิน / ผู้เขียนเอกสาร</p>
             </div>
           </div>
+
+          {printInvoiceData.imageUrl && (
+            <div className="print-slip-proof" style={{ marginTop: '25px', padding: '12px 15px', border: '1px dashed #666', borderRadius: '8px', textAlign: 'center', pageBreakInside: 'avoid' }}>
+              <h4 style={{ fontSize: '12px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#333' }}>
+                📎 หลักฐานการชำระเงิน / รูปภาพสลิปที่แนบมา (Attached Transfer Slip Proof)
+              </h4>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <img 
+                  src={printInvoiceData.imageUrl} 
+                  alt="หลักฐานสลิปโอนเงิน" 
+                  style={{ maxHeight: '280px', maxWidth: '100%', objectFit: 'contain', border: '1px solid #ddd', borderRadius: '6px', padding: '4px', backgroundColor: '#ffffff' }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="print-footer">
             <p>ขอขอบคุณที่ใช้บริการ / เอกสารนี้จัดพิมพ์ขึ้นโดยอัตโนมัติผ่านทางระบบสารสนเทศ FlowLedger Pro</p>
