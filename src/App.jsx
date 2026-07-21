@@ -349,7 +349,7 @@ export default function App() {
 
   // Filtering general ledger state
   const [filterType, setFilterType] = useState('all');
-  const [filterTime, setFilterTime] = useState('today'); // today, week, month, year, custom
+  const [filterTime, setFilterTime] = useState('week'); // week, month, year, all, custom
   const [filterSearch, setFilterSearch] = useState('');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -2542,9 +2542,8 @@ export default function App() {
               <div className="filter-bar" style={{ margin: 0 }}>
                 <div className="filter-pill-container" style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'rgba(255,255,255,0.03)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', alignItems: 'center' }}>
                   {[
-                    { value: 'today', label: '⚡ วันนี้ (วันต่อวัน)' },
-                    { value: 'month', label: 'เดือนนี้' },
                     { value: 'week', label: 'สัปดาห์นี้' },
+                    { value: 'month', label: 'เดือนนี้' },
                     { value: 'year', label: 'ปีนี้' },
                     { value: 'all', label: 'ทั้งหมด' },
                     { value: 'custom', label: 'กำหนดเอง' }
