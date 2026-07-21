@@ -288,6 +288,15 @@ export default function App() {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [docFilterType, setDocFilterType] = useState('all');
+  const [editingDoc, setEditingDoc] = useState(null);
+  const [docForm, setDocForm] = useState({
+    title: '',
+    category: 'ค่าใช้จ่ายทั่วไป',
+    amount: 0,
+    sender: '',
+    details: '',
+    type: 'expense'
+  });
 
   // Employee Salary (Payroll) State
   const [salaries, setSalaries] = useState(() => {
@@ -1033,6 +1042,64 @@ export default function App() {
         setDocuments(prev => prev.filter(doc => doc.id !== id));
       }
     }
+  };
+
+  const openEditDocModal = (docItem) => {
+    setEditingDoc(docItem);
+    setDocForm({
+      title: docItem.title || '',
+      category: docItem.category || 'ค่าใช้จ่ายทั่วไป',
+      amount: docItem.amount || 0,
+      sender: docItem.sender || '',
+      details: docItem.details || '',
+      type: docItem.type || 'expense'
+    });
+  };
+
+  const handleSaveEditedDoc = async (e) => {
+    e.preventDefault();
+    if (!editingDoc) return;
+
+    const updatedDoc = {
+      ...editingDoc,
+      title: docForm.title,
+      category: docForm.category,
+      amount: parseFloat(docForm.amount) || 0,
+      sender: docForm.sender,
+      details: docForm.details,
+      type: docForm.type
+    };
+
+    // 1. Update documents state
+    setDocuments(prev => prev.map(d => d.id === editingDoc.id ? updatedDoc : d));
+
+    // 2. Sync with transactions list
+    setTransactions(prev => prev.map(t => {
+      if (t.ref === editingDoc.ref || t.id.includes(editingDoc.id)) {
+        return {
+          ...t,
+          category: docForm.category,
+          amount: parseFloat(docForm.amount) || t.amount,
+          description: `LINE Bot [${docForm.category}]: ${docForm.details || docForm.title}`
+        };
+      }
+      return t;
+    }));
+
+    // 3. Save to cloud if Firebase is enabled
+    if (isFirebaseConfigured()) {
+      try {
+        await saveDocToCloud("documents", updatedDoc);
+      } catch (err) {
+        console.error("Cloud doc update failed:", err);
+      }
+    }
+
+    setEditingDoc(null);
+    if (selectedDoc && selectedDoc.id === editingDoc.id) {
+      setSelectedDoc(updatedDoc);
+    }
+    alert("✅ อัปเดตข้อมูลเอกสารและหมวดหมู่เรียบร้อยแล้ว!");
   };
 
   const handleClearAllDocuments = () => {
@@ -4051,6 +4118,14 @@ export default function App() {
                       >
                         ดูรูปบิลสลิป
                       </button>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => openEditDocModal(doc)} 
+                        style={{ padding: '0.4rem', minWidth: '36px', justifyContent: 'center', flexShrink: 0 }}
+                        title="แก้ไขข้อมูลเอกสาร & เปลี่ยนหมวดหมู่"
+                      >
+                        <Edit size={14} />
+                      </button>
                       {currentUser.role === 'admin' && (
                         <button 
                           className="btn btn-danger" 
@@ -5320,13 +5395,123 @@ export default function App() {
 
               <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-primary" onClick={() => handlePrintDocInvoice(selectedDoc)} style={{ flexGrow: 1, justifyContent: 'center' }}>
-                  พิมพ์รายงาน PDF
+                  <Printer size={16} /> พิมพ์รายงาน PDF
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => { const docToEdit = selectedDoc; setSelectedDoc(null); openEditDocModal(docToEdit); }} 
+                  style={{ flexGrow: 1, justifyContent: 'center' }}
+                >
+                  <Edit size={16} /> แก้ไขหมวดหมู่ / ข้อมูล
                 </button>
                 <button className="btn btn-secondary" onClick={() => setSelectedDoc(null)} style={{ flexGrow: 1, justifyContent: 'center' }}>
                   ปิดหน้าต่าง
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= EDIT DOCUMENT / CATEGORY MODAL ================= */}
+      {editingDoc && (
+        <div className="modal-overlay" onClick={() => setEditingDoc(null)}>
+          <div className="modal-content" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>✏️ แก้ไขข้อมูลเอกสาร & หมวดหมู่บัญชี</h2>
+              <button className="modal-close-btn" onClick={() => setEditingDoc(null)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveEditedDoc}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                
+                <div className="form-group">
+                  <label className="form-label">หมวดหมู่บัญชี (Category)</label>
+                  <select 
+                    className="form-select"
+                    value={docForm.category}
+                    onChange={(e) => setDocForm(prev => ({ ...prev, category: e.target.value }))}
+                  >
+                    <option value="ค่าอาหารและเครื่องดื่ม">ค่าอาหารและเครื่องดื่ม</option>
+                    <option value="ค่าเดินทางและยานพาหนะ">ค่าเดินทางและยานพาหนะ</option>
+                    <option value="ค่าอุปกรณ์สำนักงาน">ค่าอุปกรณ์สำนักงาน</option>
+                    <option value="ค่าอินเทอร์เน็ตและโทรศัพท์">ค่าอินเทอร์เน็ตและโทรศัพท์</option>
+                    <option value="ค่าเช่าสถานที่">ค่าเช่าสถานที่</option>
+                    <option value="ค่าสาธารณูปโภค">ค่าสาธารณูปโภค</option>
+                    <option value="ค่าซ่อมแซมและบำรุงรักษา">ค่าซ่อมแซมและบำรุงรักษา</option>
+                    <option value="ค่าโฆษณาและการตลาด">ค่าโฆษณาและการตลาด</option>
+                    <option value="ค่าใช้จ่ายทั่วไป">ค่าใช้จ่ายทั่วไป</option>
+                    <option value="รายได้จากการขาย">รายได้จากการขาย</option>
+                    <option value="รายได้จากการบริการ">รายได้จากการบริการ</option>
+                    <option value="อื่น ๆ">อื่น ๆ</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">ชื่อหัวข้อเอกสาร (Document Title)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    required
+                    value={docForm.title}
+                    onChange={(e) => setDocForm(prev => ({ ...prev, title: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">ประเภทเอกสาร</label>
+                    <select 
+                      className="form-select"
+                      value={docForm.type}
+                      onChange={(e) => setDocForm(prev => ({ ...prev, type: e.target.value }))}
+                    >
+                      <option value="expense">ใบกำกับภาษี / รายจ่าย</option>
+                      <option value="receipt">ใบเสร็จรับเงิน / รายรับ</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">จำนวนเงิน (THB)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      step="0.01"
+                      required
+                      value={docForm.amount}
+                      onChange={(e) => setDocForm(prev => ({ ...prev, amount: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">ชื่อผู้รับ / ผู้จ่ายเงิน (Customer / Merchant)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={docForm.sender}
+                    onChange={(e) => setDocForm(prev => ({ ...prev, sender: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">รายละเอียด / หมายเหตุ (Details)</label>
+                  <textarea 
+                    className="form-input" 
+                    rows="2"
+                    value={docForm.details}
+                    onChange={(e) => setDocForm(prev => ({ ...prev, details: e.target.value }))}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                  <button type="submit" className="btn btn-primary" style={{ flexGrow: 1, justifyContent: 'center' }}>
+                    💾 บันทึกการแก้ไข
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setEditingDoc(null)} style={{ flexGrow: 1, justifyContent: 'center' }}>
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}

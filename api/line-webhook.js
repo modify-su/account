@@ -43,30 +43,47 @@ function detectCategory(text, defaultIsIncome) {
   
   const raw = String(text).toLowerCase();
   
-  if (raw.includes("เดินทาง") || raw.includes("รถ") || raw.includes("แท็กซี่") || raw.includes("ตั๋ว") || raw.includes("ทางด่วน") || raw.includes("น้ำมัน") || raw.includes("travel")) {
+  // 1. ค่าเดินทางและยานพาหนะ
+  if (raw.includes("เดินทาง") || raw.includes("เติมน้ำมัน") || raw.includes("น้ำมัน") || raw.includes("พาหนะ") || raw.includes("ซ่อมรถ") || raw.includes("เปลี่ยนยาง") || raw.includes("ยางรถ") || raw.includes("แท็กซี่") || raw.includes("รถ") || raw.includes("ตั๋ว") || raw.includes("ทางด่วน") || raw.includes("travel") || raw.includes("fuel") || raw.includes("gas")) {
     return { category: "ค่าเดินทางและยานพาหนะ", isIncome: false };
   }
-  if (raw.includes("อาหาร") || raw.includes("เครื่องดื่ม") || raw.includes("กาแฟ") || raw.includes("ข้าว") || raw.includes("กิน") || raw.includes("food") || raw.includes("drink")) {
+
+  // 2. ค่าอาหารและเครื่องดื่ม
+  if (raw.includes("อาหาร") || raw.includes("ข้าวเที่ยง") || raw.includes("ข้าว") || raw.includes("กินเลี้ยง") || raw.includes("หมูกระทะ") || raw.includes("กาแฟ") || raw.includes("เครื่องดื่ม") || raw.includes("กิน") || raw.includes("มื้อ") || raw.includes("buffet") || raw.includes("food") || raw.includes("drink") || raw.includes("coffee")) {
     return { category: "ค่าอาหารและเครื่องดื่ม", isIncome: false };
   }
-  if (raw.includes("อุปกรณ์") || raw.includes("กระดาษ") || raw.includes("เครื่องเขียน") || raw.includes("หมึก") || raw.includes("ของใช้") || raw.includes("office")) {
+
+  // 3. ค่าอุปกรณ์สำนักงาน
+  if (raw.includes("อุปกรณ์") || raw.includes("อุปกรณ์ออฟฟิศ") || raw.includes("ของเข้าออฟฟิศ") || raw.includes("ซื้อของ") || raw.includes("เครื่องเขียน") || raw.includes("กระดาษ") || raw.includes("หมึก") || raw.includes("ของใช้") || raw.includes("office") || raw.includes("supplies")) {
     return { category: "ค่าอุปกรณ์สำนักงาน", isIncome: false };
   }
+
+  // 4. ค่าอินเทอร์เน็ตและโทรศัพท์
   if (raw.includes("เน็ต") || raw.includes("อินเทอร์เน็ต") || raw.includes("โทรศัพท์") || raw.includes("มือถือ") || raw.includes("wifi") || raw.includes("internet")) {
     return { category: "ค่าอินเทอร์เน็ตและโทรศัพท์", isIncome: false };
   }
+
+  // 5. ค่าเช่าสถานที่
   if (raw.includes("เช่า") || raw.includes("ค่าเช่า") || raw.includes("rent")) {
     return { category: "ค่าเช่าสถานที่", isIncome: false };
   }
+
+  // 6. ค่าสาธารณูปโภค
   if (raw.includes("ไฟ") || raw.includes("น้ำ") || raw.includes("สาธารณูปโภค") || raw.includes("ค่าน้ำ") || raw.includes("ค่าไฟ") || raw.includes("utility")) {
     return { category: "ค่าสาธารณูปโภค", isIncome: false };
   }
+
+  // 7. ค่าซ่อมแซมและบำรุงรักษา
   if (raw.includes("ซ่อม") || raw.includes("บำรุง") || raw.includes("repair")) {
     return { category: "ค่าซ่อมแซมและบำรุงรักษา", isIncome: false };
   }
+
+  // 8. ค่าโฆษณาและการตลาด
   if (raw.includes("โฆษณา") || raw.includes("การตลาด") || raw.includes("ads") || raw.includes("marketing")) {
     return { category: "ค่าโฆษณาและการตลาด", isIncome: false };
   }
+
+  // 9. รายได้จากการขาย / บริการ
   if (raw.includes("ขาย") || raw.includes("ยอดขาย") || raw.includes("ลูกค้าโอน") || raw.includes("sale")) {
     return { category: "รายได้จากการขาย", isIncome: true };
   }
@@ -74,6 +91,7 @@ function detectCategory(text, defaultIsIncome) {
     return { category: "รายได้จากการบริการ", isIncome: true };
   }
 
+  // 10. ค่าใช้จ่ายทั่วไป fallback
   if (raw.includes("จ่าย") || raw.includes("ค่า") || raw.includes("ชำระ") || raw.includes("ออก") || raw.includes("expense")) {
     return { category: "ค่าใช้จ่ายทั่วไป", isIncome: false };
   }
