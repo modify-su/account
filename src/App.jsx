@@ -29,7 +29,12 @@ import {
   EyeOff,
   Edit,
   Camera,
-  Scan
+  Scan,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Info,
+  X
 } from 'lucide-react';
 
 import { 
@@ -157,6 +162,22 @@ export default function App() {
 
   // Settings Sub-Tab
   const [settingsSubTab, setSettingsSubTab] = useState('general'); // general, users
+
+  // Modern Toast Notification System State
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = (type = 'success', title = '', message = '', duration = 4000) => {
+    const id = Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    setToasts(prev => [...prev, { id, type, title, message, duration }]);
+
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   // --- MENU NAME CUSTOMIZATION STATES ---
   const [menuNames, setMenuNames] = useState(() => {
@@ -555,7 +576,7 @@ export default function App() {
     if (isFirebaseConfigured()) {
       await saveDocToCloud('settings', { id: 'global', ...settings });
     }
-    alert('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว');
+    showToast('success', 'บันทึกเรียบร้อย', 'บันทึกการตั้งค่าระบบเรียบร้อยแล้ว');
   };
 
   const handleLogoUpload = (e) => {
@@ -563,7 +584,7 @@ export default function App() {
     if (!file) return;
 
     if (file.size > 500 * 1024) {
-      alert('ขนาดไฟล์โลโก้ต้องไม่เกิน 500KB เพื่อประสิทธิภาพสูงสุดของระบบ');
+      showToast('warning', 'ไฟล์มีขนาดใหญ่เกินไป', 'ขนาดไฟล์โลโก้ต้องไม่เกิน 500KB เพื่อประสิทธิภาพสูงสุด');
       return;
     }
 
@@ -578,7 +599,7 @@ export default function App() {
     e.preventDefault();
     const cleanInput = firebaseConfigInput.trim();
     if (!cleanInput) {
-      alert('กรุณากรอกข้อมูล Firebase Config');
+      showToast('warning', 'ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูล Firebase Config');
       return;
     }
 
@@ -613,18 +634,18 @@ export default function App() {
       }
 
       localStorage.setItem("flowledger_firebase_config", JSON.stringify(config));
-      alert('เชื่อมต่อฐานข้อมูลคลาวด์ Firebase สำเร็จ! กำลังโหลดหน้าเว็บใหม่...');
-      window.location.reload();
+      showToast('success', 'เชื่อมต่อคลาวด์สำเร็จ', 'เชื่อมต่อฐานข้อมูลคลาวด์ Firebase เรียบร้อยแล้ว!');
+      setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
-      alert(`การตั้งค่าไม่ถูกต้อง: ${err.message || 'กรุณาตรวจสอบรูปแบบข้อความที่นำมาวาง'}`);
+      showToast('error', 'ตั้งค่าไม่ถูกต้อง', err.message || 'กรุณาตรวจสอบรูปแบบข้อความที่นำมาวาง');
     }
   };
 
   const handleDisconnectFirebase = () => {
     if (confirm('คุณต้องการตัดการเชื่อมต่อกับคลาวด์ Firebase และสลับกลับไปใช้เครื่องเดียว (Local Mode) ใช่หรือไม่?')) {
       localStorage.removeItem("flowledger_firebase_config");
-      alert('ตัดการเชื่อมต่อแล้ว กำลังโหลดหน้าเว็บใหม่...');
-      window.location.reload();
+      showToast('info', 'ตัดการเชื่อมต่อคลาวด์', 'สลับกลับเข้าสู่โหมดใช้งานเครื่องเดียว (Local Mode)');
+      setTimeout(() => window.location.reload(), 1000);
     }
   };
 
@@ -632,6 +653,7 @@ export default function App() {
     e.preventDefault();
     setMenuNames(menuForm);
     setShowMenuEditModal(false);
+    showToast('success', 'บันทึกเรียบร้อย', 'ปรับแต่งชื่อเมนูเรียบร้อยแล้ว');
   };
 
   const handleResetMenuNames = () => {
@@ -646,6 +668,7 @@ export default function App() {
       settings: 'ตั้งค่าระบบ'
     };
     setMenuForm(defaults);
+    showToast('info', 'รีเซ็ตชื่อเมนู', 'คืนค่าชื่อเมนูเริ่มต้นเรียบร้อยแล้ว');
   };
 
   // --- USER AUTH HANDLERS ---
@@ -657,10 +680,12 @@ export default function App() {
     const found = users.find(u => u.username.toLowerCase() === loginUsername.trim().toLowerCase());
     if (!found) {
       setAuthError('ไม่พบชื่อผู้ใช้งานนี้ในระบบ');
+      showToast('error', 'เข้าสู่ระบบไม่สำเร็จ', 'ไม่พบชื่อผู้ใช้งานนี้ในระบบ');
       return;
     }
     if (found.password !== loginPassword) {
       setAuthError('รหัสผ่านไม่ถูกต้อง');
+      showToast('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสผ่านไม่ถูกต้อง');
       return;
     }
 
@@ -668,6 +693,7 @@ export default function App() {
     setLoginUsername('');
     setLoginPassword('');
     setActiveTab('dashboard');
+    showToast('success', 'เข้าสู่ระบบสำเร็จ', `ยินดีต้อนรับคุณ ${found.name}`);
   };
 
   const handleRealGoogleLogin = async () => {
@@ -727,19 +753,21 @@ export default function App() {
 
       setGoogleAuthLoading(false);
       setActiveTab('dashboard');
+      showToast('success', 'เข้าสู่ระบบเรียบร้อย', `ยินดีต้อนรับคุณ ${googleUser.name}`);
     } catch (err) {
       setGoogleAuthLoading(false);
       console.error('Google Sign-In error:', err);
 
+      let msg = err.message || 'Unknown error';
       if (err.code === 'auth/popup-closed-by-user') {
-        setAuthError('คุณปิดหน้าต่างลงชื่อเข้าใช้ Google กรุณาลองใหม่อีกครั้ง');
+        msg = 'คุณปิดหน้าต่างลงชื่อเข้าใช้ Google กรุณาลองใหม่อีกครั้ง';
       } else if (err.code === 'auth/network-request-failed') {
-        setAuthError('เชื่อมต่ออินเทอร์เน็ตไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ');
+        msg = 'เชื่อมต่ออินเทอร์เน็ตไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ';
       } else if (err.message?.includes('Firebase')) {
-        setAuthError('กรุณาตั้งค่า Firebase ก่อนใช้งาน Google Sign-In (ไปที่ ตั้งค่าระบบ > Firebase)');
-      } else {
-        setAuthError(`เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ${err.message || 'Unknown error'}`);
+        msg = 'กรุณาตั้งค่า Firebase ก่อนใช้งาน Google Sign-In (ไปที่ ตั้งค่าระบบ > Firebase)';
       }
+      setAuthError(msg);
+      showToast('error', 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ', msg);
     }
   };
 
@@ -750,12 +778,14 @@ export default function App() {
 
     if (!regName.trim() || !regUsername.trim() || !regPassword) {
       setAuthError('กรุณากรอกข้อมูลให้ครบถ้วน');
+      showToast('warning', 'ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลผู้สมัครให้ครบถ้วน');
       return;
     }
 
     const exists = users.some(u => u.username.toLowerCase() === regUsername.trim().toLowerCase());
     if (exists) {
       setAuthError('ชื่อผู้ใช้งานนี้มีอยู่ในระบบแล้ว');
+      showToast('error', 'สมัครไม่สำเร็จ', 'ชื่อผู้ใช้งานนี้มีอยู่ในระบบแล้ว');
       return;
     }
 
@@ -773,6 +803,7 @@ export default function App() {
       setUsers(prev => [...prev, newUser]);
     }
     setAuthSuccess('สมัครใช้งานสำเร็จ! กำลังสลับไปยังหน้าล็อกอิน...');
+    showToast('success', 'ลงทะเบียนสำเร็จ', 'สร้างบัญชีผู้ใช้งานใหม่เรียบร้อยแล้ว');
     
     // Clear inputs
     setRegName('');
@@ -798,6 +829,7 @@ export default function App() {
       }
       setCurrentUser(null);
       setActiveTab('dashboard');
+      showToast('info', 'ออกจากระบบเรียบร้อย', 'คุณได้ออกจากระบบเรียบร้อยแล้ว');
     }
   };
 
@@ -826,7 +858,7 @@ export default function App() {
   const handleSaveUser = (e) => {
     e.preventDefault();
     if (!userForm.name.trim() || !userForm.username.trim() || !userForm.password) {
-      alert('กรุณากรอกข้อมูลผู้ใช้งานให้ครบถ้วน');
+      showToast('warning', 'ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลผู้ใช้งานให้ครบถ้วน');
       return;
     }
 
@@ -836,7 +868,7 @@ export default function App() {
       // Check duplicate usernames ignoring own user
       const duplicate = users.some(u => u.id !== editingUser.id && u.username.toLowerCase() === usernameLower);
       if (duplicate) {
-        alert('ชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว');
+        showToast('error', 'ชื่อผู้ใช้ซ้ำ', 'ชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว');
         return;
       }
 
@@ -853,11 +885,12 @@ export default function App() {
       }
 
       setEditingUser(null);
+      showToast('success', 'บันทึกเรียบร้อย', 'อัปเดตข้อมูลผู้ใช้งานเรียบร้อยแล้ว');
     } else {
       // Check duplicate usernames
       const duplicate = users.some(u => u.username.toLowerCase() === usernameLower);
       if (duplicate) {
-        alert('ชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว');
+        showToast('error', 'ชื่อผู้ใช้ซ้ำ', 'ชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว');
         return;
       }
 
@@ -873,6 +906,7 @@ export default function App() {
       } else {
         setUsers(prev => [...prev, newUser]);
       }
+      showToast('success', 'บันทึกเรียบร้อย', 'เพิ่มผู้ใช้งานใหม่เรียบร้อยแล้ว');
     }
 
     setShowUserModal(false);
@@ -880,7 +914,7 @@ export default function App() {
 
   const handleDeleteUser = (userId) => {
     if (userId === currentUser.id) {
-      alert('คุณไม่สามารถลบชื่อผู้ใช้งานที่คุณกำลังล็อกอินอยู่ได้');
+      showToast('warning', 'ไม่สามารถลบได้', 'คุณไม่สามารถลบชื่อผู้ใช้งานที่คุณกำลังล็อกอินอยู่ได้');
       return;
     }
 
@@ -890,6 +924,7 @@ export default function App() {
       } else {
         setUsers(prev => prev.filter(u => u.id !== userId));
       }
+      showToast('warning', 'ลบเรียบร้อย', 'ลบผู้ใช้งานออกจากระบบเรียบร้อยแล้ว');
     }
   };
 
@@ -922,7 +957,7 @@ export default function App() {
     const cleanPrice = parseFloat(productForm.price);
     const cleanStock = parseInt(productForm.stock);
     if (!productForm.name.trim() || !productForm.sku.trim() || isNaN(cleanPrice) || isNaN(cleanStock)) {
-      alert('กรุณากรอกข้อมูลสินค้าให้ถูกต้องและครบถ้วน');
+      showToast('warning', 'ข้อมูลไม่ถูกต้อง', 'กรุณากรอกข้อมูลสินค้าให้ถูกต้องและครบถ้วน');
       return;
     }
 
@@ -934,10 +969,11 @@ export default function App() {
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
       }
       setEditingProduct(null);
+      showToast('success', 'บันทึกเรียบร้อย', 'อัปเดตข้อมูลสินค้า POS เรียบร้อยแล้ว');
     } else {
       const duplicate = products.some(p => p.sku.toLowerCase() === productForm.sku.trim().toLowerCase());
       if (duplicate) {
-        alert('รหัสสินค้า (SKU) นี้มีอยู่ในระบบแล้ว');
+        showToast('error', 'รหัสสินค้าซ้ำ', 'รหัสสินค้า (SKU) นี้มีอยู่ในระบบแล้ว');
         return;
       }
 
@@ -954,6 +990,7 @@ export default function App() {
       } else {
         setProducts(prev => [...prev, newProduct]);
       }
+      showToast('success', 'บันทึกเรียบร้อย', 'เพิ่มสินค้าใหม่เรียบร้อยแล้ว');
     }
 
     setShowProductModal(false);
@@ -967,6 +1004,7 @@ export default function App() {
         setProducts(prev => prev.filter(p => p.id !== productId));
       }
       setCart(prev => prev.filter(item => item.id !== productId));
+      showToast('warning', 'ลบเรียบร้อย', 'ลบสินค้า POS เรียบร้อยแล้ว');
     }
   };
 
@@ -1042,7 +1080,7 @@ export default function App() {
     const tax = parseFloat(salaryForm.deductionTax) || 0;
 
     if (!salaryForm.employeeName.trim() || isNaN(base) || base < 0) {
-      alert('กรุณากรอกชื่อและฐานเงินเดือนให้ถูกต้อง');
+      showToast('warning', 'ข้อมูลไม่ถูกต้อง', 'กรุณากรอกชื่อและฐานเงินเดือนให้ถูกต้อง');
       return;
     }
 
@@ -1062,6 +1100,7 @@ export default function App() {
         setSalaries(prev => prev.map(s => s.id === editingSalary.id ? updated : s));
       }
       setEditingSalary(null);
+      showToast('success', 'บันทึกเรียบร้อย', 'อัปเดตข้อมูลสลิปเงินเดือนพนักงานเรียบร้อยแล้ว');
     } else {
       const newProfile = {
         id: `sal_${Date.now()}`,
@@ -1080,6 +1119,7 @@ export default function App() {
       } else {
         setSalaries(prev => [...prev, newProfile]);
       }
+      showToast('success', 'บันทึกเรียบร้อย', 'เพิ่มโปรไฟล์เงินเดือนพนักงานเรียบร้อยแล้ว');
     }
     setShowSalaryModal(false);
   };
@@ -1091,12 +1131,13 @@ export default function App() {
       } else {
         setSalaries(prev => prev.filter(s => s.id !== id));
       }
+      showToast('warning', 'ลบเรียบร้อย', 'ลบข้อมูลโปรไฟล์เงินเดือนเรียบร้อยแล้ว');
     }
   };
 
   const handleDeleteDocument = (id) => {
     if (currentUser.role !== 'admin') {
-      alert('ขออภัย คุณไม่มีสิทธิ์ในการลบเอกสารนี้');
+      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย คุณไม่มีสิทธิ์ในการลบเอกสารนี้');
       return;
     }
     if (confirm('คุณต้องการลบเอกสารนี้ออกจากระบบใช่หรือไม่?')) {
@@ -1105,6 +1146,7 @@ export default function App() {
       } else {
         setDocuments(prev => prev.filter(doc => doc.id !== id));
       }
+      showToast('warning', 'ลบเรียบร้อย', 'ลบเอกสารออกจากคลังเรียบร้อยแล้ว');
     }
   };
 
@@ -1163,7 +1205,7 @@ export default function App() {
     if (selectedDoc && selectedDoc.id === editingDoc.id) {
       setSelectedDoc(updatedDoc);
     }
-    alert("✅ อัปเดตข้อมูลเอกสารและหมวดหมู่เรียบร้อยแล้ว!");
+    showToast('success', 'บันทึกเรียบร้อย', 'อัปเดตข้อมูลเอกสารและหมวดหมู่เรียบร้อยแล้ว');
   };
 
   const handleScanReceiptUpload = (e) => {
@@ -1247,7 +1289,7 @@ export default function App() {
   const handleSaveScannedReceipt = async (e) => {
     e.preventDefault();
     if (!scannedReceiptForm.amount || parseFloat(scannedReceiptForm.amount) <= 0) {
-      alert('กรุณาระบุจำนวนเงินให้ถูกต้อง');
+      showToast('warning', 'ข้อมูลไม่ถูกต้อง', 'กรุณาระบุจำนวนเงินให้ถูกต้อง');
       return;
     }
 
@@ -1295,12 +1337,12 @@ export default function App() {
     }
 
     setShowReceiptScanModal(false);
-    alert('✅ บันทึกบิล/ใบเสร็จรับเงินเข้าสมุดบัญชีและคลังเอกสารเรียบร้อยแล้ว!');
+    showToast('success', 'บันทึกเรียบร้อย', 'บันทึกบิล/ใบเสร็จรับเงินเข้าสมุดบัญชีและคลังเอกสารเรียบร้อยแล้ว');
   };
 
   const handleClearAllDocuments = () => {
     if (currentUser.role !== 'admin') {
-      alert('ขออภัย คุณไม่มีสิทธิ์ในการล้างคลังเอกสาร');
+      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย คุณไม่มีสิทธิ์ในการล้างคลังเอกสาร');
       return;
     }
     if (confirm('⚠️ คำเตือน: คุณต้องการล้างคลังเอกสารทั้งหมดใช่หรือไม่? การกระทำนี้ไม่สามารถเรียกคืนได้!')) {
@@ -1309,6 +1351,7 @@ export default function App() {
       } else {
         setDocuments([]);
       }
+      showToast('warning', 'ล้างคลังเอกสารเรียบร้อย', 'ลบไฟล์เอกสารในคลังทั้งหมดเรียบร้อยแล้ว');
     }
   };
 
@@ -1410,7 +1453,7 @@ export default function App() {
       setTransactions(prev => [newTx, ...prev]);
     }
 
-    alert(`จ่ายเงินเดือนพนักงาน ${processingSalaryProfile.employeeName} เรียบร้อยแล้ว ยอดสุทธิ ฿${netPaid.toLocaleString()}`);
+    showToast('success', 'จ่ายเงินเดือนเรียบร้อย', `จ่ายเงินเดือนพนักงาน ${processingSalaryProfile.employeeName} เรียบร้อยแล้ว ยอดสุทธิ ฿${netPaid.toLocaleString()}`);
     setShowProcessPayrollModal(false);
     setProcessingSalaryProfile(null);
   };
@@ -1428,6 +1471,7 @@ export default function App() {
           setTransactions(prev => prev.filter(t => t.id !== transactionId));
         }
       }
+      showToast('warning', 'ลบประวัติเรียบร้อย', 'ลบประวัติการจ่ายเงินเดือนเรียบร้อยแล้ว');
     }
   };
 
@@ -1534,9 +1578,9 @@ export default function App() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      alert(`✅ สำรองข้อมูลทั้งระบบพร้อมรูปภาพสลิปทั้งหมดเรียบร้อยแล้ว!\n(บันทึกเอกสาร ${documents.length} รายการ, ธุรกรรม ${transactions.length} รายการ)`);
+      showToast('success', 'สำรองข้อมูลเรียบร้อย', `สำรองข้อมูลทั้งระบบพร้อมรูปภาพสลิปเรียบร้อยแล้ว (${documents.length} เอกสาร, ${transactions.length} ธุรกรรม)`);
     } catch (err) {
-      alert("❌ เกิดข้อผิดพลาดในการสำรองข้อมูล: " + err.message);
+      showToast('error', 'สำรองข้อมูลไม่สำเร็จ', err.message);
     }
   };
 
@@ -1568,10 +1612,10 @@ export default function App() {
           if (Array.isArray(backupData.chatMessages)) setChatMessages(backupData.chatMessages);
           if (backupData.settings && typeof backupData.settings === 'object') setSettings(backupData.settings);
 
-          alert("🎉 คืนค่าระบบ ข้อมูลบัญชี และรูปภาพสลิปทั้งหมดเข้าสู่ระบบสำเร็จเรียบร้อยแล้ว!");
+          showToast('success', 'กู้คืนข้อมูลสำเร็จ', 'คืนค่าระบบ ข้อมูลบัญชี และรูปภาพสลิปทั้งหมดเรียบร้อยแล้ว');
         }
       } catch (err) {
-        alert("❌ ไม่สามารถนำเข้าไฟล์สำรองได้: " + err.message);
+        showToast('error', 'นำเข้าข้อมูลไม่สำเร็จ', err.message);
       }
       e.target.value = ''; // Reset file input
     };
@@ -1587,7 +1631,7 @@ export default function App() {
       const text = event.target.result;
       const lines = text.split(/\r?\n/);
       if (lines.length < 2) {
-        alert("ไฟล์ไม่มีข้อมูลเพียงพอ");
+        showToast('warning', 'ไฟล์ไม่ถูกต้อง', 'ไฟล์ CSV ไม่มีข้อมูลเพียงพอ');
         return;
       }
       
@@ -1656,17 +1700,17 @@ export default function App() {
           } else {
             setTransactions(prev => [...importedItems, ...prev]);
           }
-          alert(`นำเข้าบัญชีรายรับ-รายจ่ายสำเร็จ ${importedItems.length} รายการ`);
+          showToast('success', 'นำเข้าสำเร็จ', `นำเข้าบัญชีรายรับ-รายจ่ายสำเร็จ ${importedItems.length} รายการ`);
         } else if (dataType === 'products') {
           if (isFirebaseConfigured()) {
             importedItems.forEach(item => saveDocToCloud('products', item));
           } else {
             setProducts(prev => [...prev, ...importedItems]);
           }
-          alert(`นำเข้าสินค้าคลังคลัง POS สำเร็จ ${importedItems.length} รายการ`);
+          showToast('success', 'นำเข้าสำเร็จ', `นำเข้าสินค้าคลัง POS สำเร็จ ${importedItems.length} รายการ`);
         }
       } else {
-        alert("ไม่พบข้อมูลที่ถูกต้องในการนำเข้า");
+        showToast('warning', 'ไม่พบข้อมูล', 'ไม่พบข้อมูลที่ถูกต้องในการนำเข้า');
       }
     };
     reader.readAsText(file, "UTF-8");
@@ -1875,7 +1919,7 @@ export default function App() {
     const cash = parseFloat(posCashReceived) || 0;
     
     if (posPaymentMethod === 'cash' && cash < totals.subtotal) {
-      alert('จำนวนเงินสดรับน้อยกว่ายอดสุทธิสินค้า');
+      showToast('warning', 'เงินสดไม่พอ', 'จำนวนเงินสดรับน้อยกว่ายอดสุทธิสินค้า');
       return;
     }
 
@@ -1936,6 +1980,7 @@ export default function App() {
 
     setCart([]);
     setPosCashReceived('');
+    showToast('success', 'ชำระเงินสำเร็จ', `ขายสินค้าและออกใบเสร็จ ${newReceiptNum} เรียบร้อยแล้ว`);
   };
 
   const handlePrintPOSReceipt = () => {
@@ -1951,7 +1996,10 @@ export default function App() {
   const handleAddOrEditTransaction = (e) => {
     e.preventDefault();
     const cleanAmount = parseFloat(txForm.amount);
-    if (isNaN(cleanAmount) || cleanAmount <= 0) return;
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      showToast('warning', 'ข้อมูลไม่ถูกต้อง', 'กรุณาระบุจำนวนเงินให้ถูกต้อง');
+      return;
+    }
 
     if (editingTransaction) {
       const updatedTx = { ...editingTransaction, ...txForm, amount: cleanAmount };
@@ -1963,6 +2011,7 @@ export default function App() {
         );
       }
       setEditingTransaction(null);
+      showToast('success', 'บันทึกเรียบร้อย', 'แก้ไขรายการเดินบัญชีเรียบร้อยแล้ว');
     } else {
       const newTx = {
         id: `t_${Date.now()}`,
@@ -1974,6 +2023,7 @@ export default function App() {
       } else {
         setTransactions(prev => [newTx, ...prev]);
       }
+      showToast('success', 'บันทึกเรียบร้อย', 'เพิ่มรายการเดินบัญชีใหม่เรียบร้อยแล้ว');
     }
 
     setTxForm({
@@ -1989,7 +2039,7 @@ export default function App() {
 
   const deleteTransaction = (id) => {
     if (currentUser.role !== 'admin') {
-      alert('ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้');
+      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้');
       return;
     }
     if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
@@ -1998,17 +2048,18 @@ export default function App() {
       } else {
         setTransactions(prev => prev.filter(t => t.id !== id));
       }
+      showToast('warning', 'ลบเรียบร้อย', 'ลบรายการเดินบัญชีเรียบร้อยแล้ว');
     }
   };
 
   const handleClearAllTransactions = async () => {
     if (currentUser.role !== 'admin') {
-      alert('ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้ (เฉพาะผู้ดูแลระบบเท่านั้น)');
+      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้ (เฉพาะผู้ดูแลระบบเท่านั้น)');
       return;
     }
 
     if (transactions.length === 0) {
-      alert('ไม่มีรายการธุรกรรมให้เคลียร์ในระบบ');
+      showToast('info', 'แจ้งเตือน', 'ไม่มีรายการธุรกรรมให้เคลียร์ในระบบ');
       return;
     }
 
@@ -2025,17 +2076,17 @@ export default function App() {
         } else {
           setTransactions([]);
         }
-        alert('เคลียร์รายการธุรกรรมทั้งหมดเรียบร้อยแล้ว');
+        showToast('warning', 'เคลียร์รายการเรียบร้อย', 'ลบรายการธุรกรรมทั้งหมดเรียบร้อยแล้ว');
       } catch (err) {
         console.error(err);
-        alert('เกิดข้อผิดพลาดในการเคลียร์ข้อมูล: ' + err.message);
+        showToast('error', 'เคลียร์ข้อมูลไม่สำเร็จ', err.message);
       }
     }
   };
 
   const openEditModal = (tx) => {
     if (currentUser.role !== 'admin') {
-      alert('ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้');
+      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้');
       return;
     }
     setEditingTransaction(tx);
@@ -2490,6 +2541,7 @@ export default function App() {
       vatRate: 7
     });
 
+    showToast('success', 'สร้างใบกำกับภาษีสำเร็จ', `บันทึกใบกำกับภาษีเลขที่ ${newInvoice.invoiceNumber} เข้าสมุดบัญชีเรียบร้อยแล้ว`);
     handlePrint(newInvoice);
   };
 
@@ -6979,6 +7031,44 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Modern Toast Notification Container */}
+      <div className="toast-container">
+        {toasts.map(toast => {
+          let icon = <CheckCircle2 size={18} />;
+          let defaultTitle = 'ทำรายการสำเร็จ';
+
+          if (toast.type === 'error') {
+            icon = <XCircle size={18} />;
+            defaultTitle = 'เกิดข้อผิดพลาด';
+          } else if (toast.type === 'warning') {
+            icon = <AlertTriangle size={18} />;
+            defaultTitle = 'คำเตือน / แจ้งเตือน';
+          } else if (toast.type === 'info') {
+            icon = <Info size={18} />;
+            defaultTitle = 'แจ้งเตือนระบบ';
+          }
+
+          return (
+            <div key={toast.id} className={`toast-item ${toast.type}`}>
+              <div className="toast-icon-badge">
+                {icon}
+              </div>
+              <div className="toast-content">
+                <div className="toast-title">{toast.title || defaultTitle}</div>
+                {toast.message && <div className="toast-message">{toast.message}</div>}
+              </div>
+              <button className="toast-close-btn" onClick={() => removeToast(toast.id)}>
+                <X size={15} />
+              </button>
+              <div 
+                className="toast-progress" 
+                style={{ animationDuration: `${toast.duration || 4000}ms` }}
+              />
+            </div>
+          );
+        })}
+      </div>
 
     </div>
   );
