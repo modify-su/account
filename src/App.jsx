@@ -13,6 +13,7 @@ import {
   FileText, 
   ArrowUpRight, 
   ArrowDownRight,
+  CreditCard,
   Filter,
   Settings,
   ShoppingCart,
@@ -2161,6 +2162,9 @@ export default function App() {
   const filteredTxs = getFilteredTransactions();
   const totalIncome = filteredTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = filteredTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const totalAdvancePayment = filteredTxs
+    .filter(t => t.category === 'สำรองจ่าย' || (t.description && t.description.includes('สำรองจ่าย')))
+    .reduce((sum, t) => sum + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
 
   const calculatedVAT = filteredTxs.reduce((sum, t) => {
@@ -3160,6 +3164,19 @@ export default function App() {
                 </div>
                 <div className="summary-card-change text-warning">
                   {calculatedVAT >= 0 ? 'ภาษีขายมากกว่าภาษีซื้อ' : 'ภาษีซื้อมากกว่าภาษีขาย (ขอคืนได้)'}
+                </div>
+              </div>
+
+              <div className="glass-card summary-card advance">
+                <div className="summary-card-header">
+                  <span className="summary-card-title">สำรองจ่ายเงิน (Advance Payments)</span>
+                  <div className="summary-card-icon"><CreditCard size={18} /></div>
+                </div>
+                <div className="summary-card-value" style={{ color: '#8b5cf6' }}>
+                  ฿{totalAdvancePayment.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                </div>
+                <div className="summary-card-change" style={{ color: '#8b5cf6' }}>
+                  💳 ยอดรวมสลิปโอนสำรองจ่าย
                 </div>
               </div>
             </div>

@@ -244,9 +244,15 @@ body {
 /* Dashboard Summary Cards Grid */
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.25rem;
   margin-bottom: 2.5rem;
+}
+
+@media (max-width: 1280px) {
+  .summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
 }
 
 .summary-card {
@@ -269,6 +275,7 @@ body {
 .summary-card.income::before { background-color: var(--success); }
 .summary-card.expense::before { background-color: var(--danger); }
 .summary-card.vat::before { background-color: var(--warning); }
+.summary-card.advance::before { background-color: #8b5cf6; }
 
 .summary-card-header {
   display: flex;
@@ -293,6 +300,7 @@ body {
 .summary-card.income .summary-card-icon { color: var(--success); background-color: var(--success-glow); }
 .summary-card.expense .summary-card-icon { color: var(--danger); background-color: var(--danger-glow); }
 .summary-card.vat .summary-card-icon { color: var(--warning); background-color: var(--warning-glow); }
+.summary-card.advance .summary-card-icon { color: #8b5cf6; background-color: rgba(139, 92, 246, 0.15); }
 
 .summary-card-value {
   font-size: 1.75rem;
