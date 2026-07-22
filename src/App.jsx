@@ -59,6 +59,51 @@ const DEFAULT_SALARY_PROFILES = [
 
 const MOCK_SLIPS = [
   {
+    id: 'slip-sakarin-ptt',
+    name: 'สลิป ปตท. (นายศักรินทร์ สำรองจ่าย)',
+    type: 'expense',
+    merchant: 'สถานีบริการน้ำมัน ปตท. (PTT Station)',
+    date: '2026-07-20',
+    time: '09:15:00',
+    amount: 1450,
+    ref: 'PTT98471049',
+    sender: 'นายศักรินทร์ สุขใจ',
+    receiver: 'สถานีบริการน้ำมัน ปตท.',
+    category: 'ค่าเดินทางและยานพาหนะ',
+    description: 'ค่าน้ำมันเชื้อเพลิงเดินทางไปงานต่างจังหวัด',
+    style: { color: '#005696', logo: 'PTT' }
+  },
+  {
+    id: 'slip-sakarin-global',
+    name: 'สลิป Siam Global (นายศักรินทร์ สำรองจ่าย)',
+    type: 'expense',
+    merchant: 'สยามโกลบอลเฮ้าส์ (Siam Global House)',
+    date: '2026-07-19',
+    time: '14:30:00',
+    amount: 3850,
+    ref: 'SGH-2026-48192',
+    sender: 'นายศักรินทร์ สุขใจ',
+    receiver: 'สยามโกลบอลเฮ้าส์',
+    category: 'ค่าอุปกรณ์สำนักงาน',
+    description: 'ซื้อวัสดุอุปกรณ์ซ่อมบำรุงและหลอดไฟออฟฟิศ',
+    style: { color: '#E30613', logo: 'GLOBAL' }
+  },
+  {
+    id: 'slip-awarin-ptt',
+    name: 'สลิป ปตท. (คุณเอวาริณณ์ บัญชีบริษัท)',
+    type: 'expense',
+    merchant: 'สถานีบริการน้ำมัน ปตท. (PTT Station)',
+    date: '2026-07-18',
+    time: '11:20:00',
+    amount: 1200,
+    ref: 'PTT28491048',
+    sender: 'นางสาวเอวาริณณ์ บัญชีหลักบริษัท',
+    receiver: 'สถานีบริการน้ำมัน ปตท.',
+    category: 'ค่าเดินทางและยานพาหนะ',
+    description: 'ค่าน้ำมันเชื้อเพลิงรถส่วนกลางออฟฟิศ',
+    style: { color: '#005696', logo: 'PTT' }
+  },
+  {
     id: 'slip-kbank',
     name: 'สลิปโอนเงิน KBank (รายได้)',
     type: 'income',
@@ -74,46 +119,16 @@ const MOCK_SLIPS = [
     style: { color: '#00A859', logo: 'KB' }
   },
   {
-    id: 'slip-scb',
-    name: 'สลิปโอนเงิน SCB (รายได้)',
-    type: 'income',
-    merchant: 'ธนาคารไทยพาณิชย์ (SCB)',
-    date: '2026-07-17',
-    time: '14:45:00',
-    amount: 1500,
-    ref: 'SCB2849104829',
-    sender: 'นางสาวสมศรี มีสุข',
-    receiver: 'บริษัท โโฟลว์เล็ดเจอร์ ซอฟต์แวร์ จำกัด',
-    category: 'รายได้อื่น ๆ',
-    description: 'โอนค่าบริการที่ปรึกษา',
-    style: { color: '#4E2A84', logo: 'SCB' }
-  },
-  {
-    id: 'bill-office-depot',
-    name: 'ใบเสร็จ Office Depot (รายจ่าย)',
-    type: 'expense',
-    merchant: 'ออฟฟิศ ดีโป้ (Office Depot)',
-    date: '2026-07-16',
-    time: '11:20:00',
-    amount: 3210,
-    ref: 'OD-2026-9812',
-    sender: '-',
-    receiver: 'บริษัท โโฟลว์เล็ดเจอร์ ซอฟต์แวร์ จำกัด',
-    category: 'ค่าอุปกรณ์สำนักงาน',
-    description: 'ซื้อกระดาษดับเบิ้ลเอ และหมึกพิมพ์เลเซอร์',
-    style: { color: '#D21312', logo: 'OD' }
-  },
-  {
     id: 'bill-7eleven',
-    name: 'สลิป 7-Eleven (รายจ่าย)',
+    name: 'สลิป 7-Eleven (นายศักรินทร์ สำรองจ่าย)',
     type: 'expense',
     merchant: 'เซเว่น อีเลฟเว่น (7-Eleven)',
     date: '2026-07-15',
     time: '08:30:15',
     amount: 185,
     ref: 'SV-4829104',
-    sender: '-',
-    receiver: 'ผู้ยื่นบิล',
+    sender: 'นายศักรินทร์ สุขใจ',
+    receiver: '7-Eleven',
     category: 'ค่าอาหารและเครื่องดื่ม',
     description: 'อาหารเช้าและกาแฟประชุมทีม',
     style: { color: '#F05A28', logo: '7-11' }
@@ -2321,36 +2336,63 @@ export default function App() {
           setTimeout(() => {
             setIsBotTyping(false);
             
+            // SENDER & ADVANCE PAYMENT (สำรองจ่าย) AUDIT LOGIC
+            const senderName = (slip.sender || '').trim();
+            const isOwner = senderName.includes('เอวาริณณ์') || senderName.includes('Awarin') || senderName.includes('Avarin');
+            
+            let finalCategory = slip.category;
+            let isAdvancePayment = false;
+
+            // If expense & sender is not "เอวาริณณ์" -> Auto categorize as "สำรองจ่าย"
+            if (slip.type === 'expense' || slip.type === 'tax_invoice') {
+              if (senderName && senderName !== '-' && senderName !== 'ผู้ยื่นบิล' && !isOwner) {
+                isAdvancePayment = true;
+                finalCategory = 'สำรองจ่าย';
+              }
+            }
+
             const docId = `doc-${Date.now()}`;
             const newDoc = {
               id: docId,
               date: slip.date,
               time: slip.time,
               type: slip.type === 'income' ? 'receipt' : 'tax_invoice',
-              title: `${slip.name} (OCR)`,
+              title: isAdvancePayment ? `[สำรองจ่าย: ${senderName}] ${slip.merchant}` : `${slip.name} (OCR)`,
               ref: slip.ref,
               amount: slip.amount,
               merchant: slip.merchant,
-              category: slip.category,
-              sender: slip.sender || 'ผู้ยื่นบิล',
+              category: finalCategory,
+              sender: senderName || 'ผู้ยื่นบิล',
               status: 'archived',
-              details: `บันทึกอัตโนมัติจาก LINE Bot - ${slip.description}`
+              details: isAdvancePayment 
+                ? `สำรองจ่ายโดย [${senderName}] ชำระให้ ${slip.merchant} (${slip.description || 'ไม่มีคำอธิบาย'})`
+                : `บันทึกอัตโนมัติจาก LINE Bot - ${slip.description}`
             };
 
             const newTx = {
               id: `t_line_${Date.now()}`,
               date: slip.date,
               type: slip.type,
-              category: slip.category,
+              category: finalCategory,
               amount: slip.amount,
-              description: `LINE Bot OCR: ${slip.merchant} (${slip.description})`,
+              description: isAdvancePayment
+                ? `[สำรองจ่ายโดย ${senderName}] ${slip.merchant} (${slip.description || 'ชำระค่าสินค้า/บริการ'})`
+                : `LINE Bot OCR: ${slip.merchant} (${slip.description})`,
               ref: slip.ref
             };
+
+            let botMsgText = `✅ *สแกนสลิปสำเร็จ!*\n\n🏢 ร้านค้า/ผู้รับ: ${slip.merchant}\n👤 ผู้โอนเงิน: ${senderName || '-'}\n💰 ยอดเงิน: ฿${slip.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📂 หมวดหมู่: *${finalCategory}*\n📅 วันที่: ${slip.date}\n🔢 รหัสอ้างอิง: ${slip.ref}`;
+
+            if (isAdvancePayment) {
+              botMsgText += `\n\n📌 *ระบุเป็นสำรองจ่าย:* สลิปนี้ขึ้นชื่อผู้โอนคือ [${senderName}] (ไม่ใช่บัญชีหลัก คุณเอวาริณณ์) ระบบระบุหมวดหมู่เป็น *[สำรองจ่าย]* และบันทึกเข้าสมุดบัญชีเรียบร้อยแล้ว`;
+            } else {
+              botMsgText += `\n\nระบบบันทึกบัญชีสำเร็จแล้ว และจัดสร้างเอกสารไฟล์ PDF สำหรับรายงานแล้ว`;
+            }
 
             const botMsg = {
               id: `m_bot_ocr_${Date.now()}`,
               sender: 'bot',
-              text: `✅ สแกนสำเร็จ!\n\n🏢 ร้านค้า/ธนาคาร: ${slip.merchant}\n💰 ยอดเงิน: ฿${slip.amount.toLocaleString()}\n📅 วันที่: ${slip.date}\n🔢 รหัสอ้างอิง: ${slip.ref}\n\nระบบบันทึกบัญชีสำเร็จแล้ว และจัดสร้างเอกสารไฟล์ PDF สำหรับรายงานแล้ว`,
+              text: botMsgText,
               docLink: newDoc,
               time: new Date().toTimeString().split(' ')[0].slice(0, 5)
             };
@@ -2384,19 +2426,35 @@ export default function App() {
   const handleLineCustomUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      const fileNameLower = file.name.toLowerCase();
+
+      let merchant = 'ร้านค้าบริการภายนอก';
+      let category = 'ค่าใช้จ่ายทั่วไป';
+      let description = 'ซื้อของใช้ออฟฟิศทั่วไป';
+
+      if (fileNameLower.includes('ptt') || fileNameLower.includes('ปตท') || fileNameLower.includes('น้ำมัน')) {
+        merchant = 'สถานีบริการน้ำมัน ปตท. (PTT Station)';
+        category = 'ค่าเดินทางและยานพาหนะ';
+        description = 'ค่าน้ำมันเชื้อเพลิงเดินทางปฏิบัติงาน';
+      } else if (fileNameLower.includes('global') || fileNameLower.includes('โกลบอล') || fileNameLower.includes('siam')) {
+        merchant = 'สยามโกลบอลเฮ้าส์ (Siam Global House)';
+        category = 'ค่าอุปกรณ์สำนักงาน';
+        description = 'ซื้อวัสดุอุปกรณ์ซ่อมแซมและเครื่องใช้ออฟฟิศ';
+      }
+
       const customSlip = {
         id: `slip_custom_${Date.now()}`,
         name: `ภาพอัปโหลด: ${file.name.slice(0,15)}...`,
         type: 'expense',
-        merchant: 'ร้านค้าบริการภายนอก',
+        merchant: merchant,
         date: new Date().toISOString().split('T')[0],
-        time: '13:10:00',
-        amount: Math.floor(Math.random() * 2500) + 120,
+        time: new Date().toTimeString().split(' ')[0].slice(0, 5),
+        amount: Math.floor(Math.random() * 2500) + 150,
         ref: 'REF-UPLOAD-' + Math.floor(Math.random() * 1000000),
-        sender: 'ผู้ใช้ LINE',
+        sender: 'นายศักรินทร์ สุขใจ',
         receiver: settings.companyName,
-        category: 'ค่าอาหารและเครื่องดื่ม',
-        description: 'ซื้อของใช้ออฟฟิศทั่วไป',
+        category: category,
+        description: description,
         style: { color: '#090d16', logo: 'FILE' }
       };
       handleLineAttachSlip(customSlip);
@@ -5525,6 +5583,7 @@ export default function App() {
                         <option value="ค่าเดินทางและยานพาหนะ">ค่าเดินทางและยานพาหนะ</option>
                         <option value="ค่าอินเทอร์เน็ตและโทรศัพท์">ค่าอินเทอร์เน็ตและโทรศัพท์</option>
                         <option value="ค่าเช่าสถานที่">ค่าเช่าสถานที่</option>
+                        <option value="สำรองจ่าย">สำรองจ่าย (สำรองจ่ายโดยพนักงาน)</option>
                         <option value="อื่น ๆ">อื่น ๆ</option>
                       </>
                     )}
