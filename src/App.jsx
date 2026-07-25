@@ -22,6 +22,7 @@ import {
   Send,
   Image,
   ChevronRight,
+  ChevronDown,
   Lock,
   LogOut,
   UserPlus,
@@ -35,7 +36,15 @@ import {
   XCircle,
   AlertTriangle,
   Info,
-  X
+  X,
+  Users,
+  Clock,
+  Calendar,
+  UserCheck,
+  FileCheck,
+  Briefcase,
+  MapPin,
+  User
 } from 'lucide-react';
 
 import { 
@@ -54,8 +63,85 @@ const INITIAL_TRANSACTIONS = [];
 const INITIAL_INVOICES = [];
 
 const DEFAULT_SALARY_PROFILES = [
-  { id: 'sal_u1', employeeName: 'ผู้ดูแลระบบสูงสุด', employeeRole: 'Admin / Manager', baseSalary: 50000, allowance: 0, deductionSocial: 750, deductionTax: 1500, bankAccount: '123-4-56789-0', bankName: 'กสิกรไทย (KBank)' },
-  { id: 'sal_u2', employeeName: 'พนักงานทั่วไป', employeeRole: 'Staff / Operator', baseSalary: 15000, allowance: 1000, deductionSocial: 750, deductionTax: 0, bankAccount: '987-6-54321-0', bankName: 'ไทยพาณิชย์ (SCB)' }
+  { 
+    id: 'sal_u1', 
+    employeeName: 'ผู้ดูแลระบบสูงสุด', 
+    employeeRole: 'Admin / Manager', 
+    department: 'ฝ่ายบริหารจัดการ',
+    phone: '081-234-5678',
+    email: 'admin@company.com',
+    startDate: '2023-01-15',
+    status: 'active',
+    baseSalary: 50000, 
+    allowance: 0, 
+    deductionSocial: 750, 
+    deductionTax: 1500, 
+    bankAccount: '123-4-56789-0', 
+    bankName: 'กสิกรไทย (KBank)' 
+  },
+  { 
+    id: 'sal_u2', 
+    employeeName: 'พนักงานทั่วไป', 
+    employeeRole: 'Staff / Operator', 
+    department: 'ฝ่ายปฏิบัติการ / POS',
+    phone: '089-876-5432',
+    email: 'staff@company.com',
+    startDate: '2024-03-01',
+    status: 'active',
+    baseSalary: 15000, 
+    allowance: 1000, 
+    deductionSocial: 750, 
+    deductionTax: 0, 
+    bankAccount: '987-6-54321-0', 
+    bankName: 'ไทยพาณิชย์ (SCB)' 
+  },
+  { 
+    id: 'sal_u3', 
+    employeeName: 'นายศักรินทร์ สุขใจ', 
+    employeeRole: 'เจ้าหน้าที่จัดซื้อ / จัดส่ง', 
+    department: 'ฝ่ายคลังสินค้าและจัดซื้อ',
+    phone: '082-999-8877',
+    email: 'sakarin@company.com',
+    startDate: '2024-05-10',
+    status: 'active',
+    baseSalary: 22000, 
+    allowance: 1500, 
+    deductionSocial: 750, 
+    deductionTax: 250, 
+    bankAccount: '555-1-23456-7', 
+    bankName: 'กสิกรไทย (KBank)' 
+  }
+];
+
+const DEFAULT_LEAVES = [
+  { 
+    id: 'lv_1', 
+    employeeName: 'นายศักรินทร์ สุขใจ', 
+    leaveType: 'ลาป่วย', 
+    startDate: '2026-07-21', 
+    endDate: '2026-07-21', 
+    days: 1, 
+    reason: 'มีอาการไข้สูงและปวดศีรษะ', 
+    status: 'approved', 
+    requestedAt: '2026-07-20 08:30' 
+  },
+  { 
+    id: 'lv_2', 
+    employeeName: 'นางสาวเอวาริณณ์ บัญชีหลักบริษัท', 
+    leaveType: 'ลาพักร้อน', 
+    startDate: '2026-07-28', 
+    endDate: '2026-07-30', 
+    days: 3, 
+    reason: 'ลาพักผ่อนประจำปีต่างจังหวัด', 
+    status: 'pending', 
+    requestedAt: '2026-07-24 10:15' 
+  }
+];
+
+const DEFAULT_ATTENDANCE = [
+  { id: 'att_1', date: '2026-07-25', employeeName: 'ผู้ดูแลระบบสูงสุด', checkIn: '08:25', checkOut: '17:30', status: 'ontime', location: 'ออฟฟิศหลัก' },
+  { id: 'att_2', date: '2026-07-25', employeeName: 'นายศักรินทร์ สุขใจ', checkIn: '08:55', checkOut: '18:00', status: 'late', location: 'ปฏิบัติงานนอกสถานที่ (ปตท/โกลบอล)' },
+  { id: 'att_3', date: '2026-07-25', employeeName: 'พนักงานทั่วไป', checkIn: '08:30', checkOut: '17:35', status: 'ontime', location: 'ออฟฟิศหลัก' }
 ];
 
 const MOCK_SLIPS = [
@@ -355,7 +441,7 @@ export default function App() {
     type: 'expense'
   });
 
-  // Employee Salary (Payroll) State
+  // Employee Salary (Payroll), Leave, Attendance & HR State
   const [salaries, setSalaries] = useState(() => {
     const saved = localStorage.getItem('flowledger_salaries_v3');
     return saved ? JSON.parse(saved) : DEFAULT_SALARY_PROFILES;
@@ -366,12 +452,55 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [salarySubTab, setSalarySubTab] = useState('overview'); // overview, history, profiles
+  // Employee Leave State
+  const [leaves, setLeaves] = useState(() => {
+    const saved = localStorage.getItem('flowledger_leaves_v1');
+    return saved ? JSON.parse(saved) : DEFAULT_LEAVES;
+  });
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [editingLeave, setEditingLeave] = useState(null);
+  const [leaveForm, setLeaveForm] = useState({
+    employeeName: '',
+    leaveType: 'ลาป่วย',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    days: 1,
+    reason: '',
+    attachmentUrl: ''
+  });
+
+  // Employee Attendance State
+  const [attendance, setAttendance] = useState(() => {
+    const saved = localStorage.getItem('flowledger_attendance_v1');
+    return saved ? JSON.parse(saved) : DEFAULT_ATTENDANCE;
+  });
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [editingAttendance, setEditingAttendance] = useState(null);
+  const [attendanceForm, setAttendanceForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    employeeName: '',
+    checkIn: '08:30',
+    checkOut: '17:30',
+    status: 'ontime',
+    location: 'ออฟฟิศหลัก',
+    note: ''
+  });
+
+  // Employee Directory Search & Filter
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
+  const [employeeDeptFilter, setEmployeeDeptFilter] = useState('all');
+
+  const [salarySubTab, setSalarySubTab] = useState('leave'); // leave, attendance, info, overview, history, profiles
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [editingSalary, setEditingSalary] = useState(null);
   const [salaryForm, setSalaryForm] = useState({
     employeeName: '',
     employeeRole: '',
+    department: 'ฝ่ายบริหารจัดการ',
+    phone: '',
+    email: '',
+    startDate: new Date().toISOString().split('T')[0],
+    status: 'active',
     baseSalary: '',
     allowance: '',
     deductionSocial: 750,
@@ -498,6 +627,8 @@ export default function App() {
 
     const unsubSalaries = subscribeToCollection('salaries', setSalaries, DEFAULT_SALARY_PROFILES);
     const unsubPayrollHistory = subscribeToCollection('payroll_history', setPayrollHistory, []);
+    const unsubLeaves = subscribeToCollection('leaves', setLeaves, DEFAULT_LEAVES);
+    const unsubAttendance = subscribeToCollection('attendance', setAttendance, DEFAULT_ATTENDANCE);
 
     return () => {
       unsubTxs();
@@ -509,8 +640,19 @@ export default function App() {
       unsubSettings();
       unsubSalaries();
       unsubPayrollHistory();
+      unsubLeaves();
+      unsubAttendance();
     };
   }, []);
+
+  // Sync leaves and attendance to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('flowledger_leaves_v1', JSON.stringify(leaves));
+  }, [leaves]);
+
+  useEffect(() => {
+    localStorage.setItem('flowledger_attendance_v1', JSON.stringify(attendance));
+  }, [attendance]);
 
   // Handle Quick Connect via QR code/link query parameters
   useEffect(() => {
@@ -1021,6 +1163,106 @@ export default function App() {
       }
       setCart(prev => prev.filter(item => item.id !== productId));
       showToast('warning', 'ลบเรียบร้อย', 'ลบสินค้า POS เรียบร้อยแล้ว');
+    }
+  };
+
+  // --- LEAVE MANAGEMENT HANDLERS ---
+  const handleSaveLeave = (e) => {
+    e.preventDefault();
+    if (!leaveForm.employeeName || !leaveForm.startDate) {
+      showToast('warning', 'ข้อมูลไม่สมบูรณ์', 'กรุณาระบุชื่อพนักงานและวันที่เริ่มลา');
+      return;
+    }
+    const newLeave = {
+      id: editingLeave ? editingLeave.id : `lv_${Date.now()}`,
+      ...leaveForm,
+      status: editingLeave ? editingLeave.status : 'pending',
+      requestedAt: editingLeave ? editingLeave.requestedAt : new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().slice(0, 5)
+    };
+
+    if (isFirebaseConfigured()) {
+      saveDocToCloud('leaves', newLeave);
+    } else {
+      setLeaves(prev => editingLeave ? prev.map(l => l.id === newLeave.id ? newLeave : l) : [newLeave, ...prev]);
+    }
+
+    setShowLeaveModal(false);
+    setEditingLeave(null);
+    setLeaveForm({
+      employeeName: '',
+      leaveType: 'ลาป่วย',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      days: 1,
+      reason: '',
+      attachmentUrl: ''
+    });
+    showToast('success', 'บันทึกใบลาสำเร็จ', `บันทึกคำขอลาของ ${newLeave.employeeName} เรียบร้อยแล้ว`);
+  };
+
+  const handleUpdateLeaveStatus = (leaveId, newStatus) => {
+    const target = leaves.find(l => l.id === leaveId);
+    if (!target) return;
+    const updated = { ...target, status: newStatus };
+    if (isFirebaseConfigured()) {
+      saveDocToCloud('leaves', updated);
+    } else {
+      setLeaves(prev => prev.map(l => l.id === leaveId ? updated : l));
+    }
+    const statusTxt = newStatus === 'approved' ? 'อนุมัติแล้ว' : 'ปฏิเสธคำขอ';
+    showToast(newStatus === 'approved' ? 'success' : 'warning', 'อัปเดตสถานะใบลา', `ปรับสถานะใบลาของ ${target.employeeName} เป็น "${statusTxt}"`);
+  };
+
+  const handleDeleteLeave = (leaveId) => {
+    if (window.confirm('คุณต้องการลบข้อมูลคำขอลานี้ใช่หรือไม่?')) {
+      if (isFirebaseConfigured()) {
+        deleteDocFromCloud('leaves', leaveId);
+      } else {
+        setLeaves(prev => prev.filter(l => l.id !== leaveId));
+      }
+      showToast('info', 'ลบใบลาแล้ว', 'ลบข้อมูลคำขอลาออกจากระบบแล้ว');
+    }
+  };
+
+  // --- ATTENDANCE TRACKING HANDLERS ---
+  const handleSaveAttendance = (e) => {
+    e.preventDefault();
+    if (!attendanceForm.employeeName || !attendanceForm.date) {
+      showToast('warning', 'ข้อมูลไม่สมบูรณ์', 'กรุณาเลือกพนักงานและวันที่ลงเวลา');
+      return;
+    }
+    const newRecord = {
+      id: editingAttendance ? editingAttendance.id : `att_${Date.now()}`,
+      ...attendanceForm
+    };
+    if (isFirebaseConfigured()) {
+      saveDocToCloud('attendance', newRecord);
+    } else {
+      setAttendance(prev => editingAttendance ? prev.map(a => a.id === newRecord.id ? newRecord : a) : [newRecord, ...prev]);
+    }
+
+    setShowAttendanceModal(false);
+    setEditingAttendance(null);
+    setAttendanceForm({
+      date: new Date().toISOString().split('T')[0],
+      employeeName: '',
+      checkIn: '08:30',
+      checkOut: '17:30',
+      status: 'ontime',
+      location: 'ออฟฟิศหลัก',
+      note: ''
+    });
+    showToast('success', 'บันทึกเวลาสำเร็จ', `บันทึกการลงเวลาของ ${newRecord.employeeName} เรียบร้อยแล้ว`);
+  };
+
+  const handleDeleteAttendance = (attId) => {
+    if (window.confirm('คุณต้องการลบรายการลงเวลานี้ใช่หรือไม่?')) {
+      if (isFirebaseConfigured()) {
+        deleteDocFromCloud('attendance', attId);
+      } else {
+        setAttendance(prev => prev.filter(a => a.id !== attId));
+      }
+      showToast('info', 'ลบการลงเวลาแล้ว', 'ลบข้อมูลการลงเวลาเรียบร้อยแล้ว');
     }
   };
 
@@ -2949,10 +3191,106 @@ export default function App() {
             <span>{menuNames.invoices}</span>
           </li>
           {currentUser.role === 'admin' && (
-            <li className={`nav-item ${activeTab === 'salary' ? 'active' : ''}`} onClick={() => setActiveTab('salary')}>
-              <FileText size={18} />
-              <span>{menuNames.salary || 'เงินเดือนพนักงาน'}</span>
-            </li>
+            <>
+              <li 
+                className={`nav-item ${activeTab === 'salary' ? 'active' : ''}`} 
+                onClick={() => {
+                  setActiveTab('salary');
+                }}
+              >
+                <Users size={18} />
+                <span>{menuNames.salary || 'บุคลากร & เงินเดือน'}</span>
+                <ChevronDown 
+                  size={14} 
+                  style={{ 
+                    marginLeft: 'auto', 
+                    transform: activeTab === 'salary' ? 'rotate(180deg)' : 'none', 
+                    transition: 'transform 0.2s' 
+                  }} 
+                />
+              </li>
+
+              {activeTab === 'salary' && (
+                <div style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', margin: '0.25rem 0 0.5rem 0' }}>
+                  <div 
+                    onClick={() => setSalarySubTab('leave')}
+                    style={{
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      color: salarySubTab === 'leave' ? 'var(--primary)' : 'var(--text-muted)',
+                      backgroundColor: salarySubTab === 'leave' ? 'var(--primary-glow)' : 'transparent',
+                      fontWeight: salarySubTab === 'leave' ? '600' : 'normal',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Calendar size={14} />
+                    <span>1. การลาพนักงาน</span>
+                  </div>
+                  <div 
+                    onClick={() => setSalarySubTab('attendance')}
+                    style={{
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      color: salarySubTab === 'attendance' ? 'var(--primary)' : 'var(--text-muted)',
+                      backgroundColor: salarySubTab === 'attendance' ? 'var(--primary-glow)' : 'transparent',
+                      fontWeight: salarySubTab === 'attendance' ? '600' : 'normal',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Clock size={14} />
+                    <span>2. การลงเวลาพนักงาน</span>
+                  </div>
+                  <div 
+                    onClick={() => setSalarySubTab('info')}
+                    style={{
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      color: salarySubTab === 'info' ? 'var(--primary)' : 'var(--text-muted)',
+                      backgroundColor: salarySubTab === 'info' ? 'var(--primary-glow)' : 'transparent',
+                      fontWeight: salarySubTab === 'info' ? '600' : 'normal',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <UserCheck size={14} />
+                    <span>3. ข้อมูลพนักงาน</span>
+                  </div>
+                  <div 
+                    onClick={() => setSalarySubTab('overview')}
+                    style={{
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      color: salarySubTab === 'overview' ? 'var(--primary)' : 'var(--text-muted)',
+                      backgroundColor: salarySubTab === 'overview' ? 'var(--primary-glow)' : 'transparent',
+                      fontWeight: salarySubTab === 'overview' ? '600' : 'normal',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <FileText size={14} />
+                    <span>4. จ่ายเงินเดือนพนักงาน</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <li className={`nav-item ${activeTab === 'dochub' ? 'active' : ''}`} onClick={() => setActiveTab('dochub')}>
             <Archive size={18} />
@@ -4548,12 +4886,30 @@ export default function App() {
             </header>
 
             {/* Sub navigation tabs */}
-            <div className="sub-tabs-container mb-4" style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <div className="sub-tabs-container mb-4" style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
+              <button 
+                className={`btn ${salarySubTab === 'leave' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSalarySubTab('leave')}
+              >
+                📝 1. การลาพนักงาน
+              </button>
+              <button 
+                className={`btn ${salarySubTab === 'attendance' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSalarySubTab('attendance')}
+              >
+                ⏱️ 2. การลงเวลาพนักงาน
+              </button>
+              <button 
+                className={`btn ${salarySubTab === 'info' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSalarySubTab('info')}
+              >
+                👤 3. ข้อมูลพนักงาน
+              </button>
               <button 
                 className={`btn ${salarySubTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setSalarySubTab('overview')}
               >
-                📊 ภาพรวม & จ่ายเงินเดือน
+                📊 จ่ายเงินเดือน & สรุปภาพรวม
               </button>
               <button 
                 className={`btn ${salarySubTab === 'history' ? 'btn-primary' : 'btn-secondary'}`}
@@ -4565,9 +4921,497 @@ export default function App() {
                 className={`btn ${salarySubTab === 'profiles' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setSalarySubTab('profiles')}
               >
-                ⚙️ ตั้งค่าฐานข้อมูลเงินเดือน
+                ⚙️ ตั้งค่าฐานเงินเดือน
               </button>
             </div>
+
+            {/* ================= 1. EMPLOYEE LEAVE MANAGEMENT TAB ================= */}
+            {salarySubTab === 'leave' && (
+              <div>
+                {/* Leave Metrics */}
+                <div className="summary-grid mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                  <div className="glass-card summary-card balance">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ใบลาทั้งหมด</span>
+                      <div className="summary-card-icon"><Calendar size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-primary">
+                      {leaves.length} รายการ
+                    </div>
+                    <div className="summary-card-change up">
+                      ประวัติการยื่นลาพนักงานทั้งหมด
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card income">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">อนุมัติแล้ว</span>
+                      <div className="summary-card-icon"><CheckCircle2 size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-success">
+                      {leaves.filter(l => l.status === 'approved').length} รายการ
+                    </div>
+                    <div className="summary-card-change up">
+                      🟢 ผ่านการอนุมัติเรียบร้อย
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card vat">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">รออนุมัติ</span>
+                      <div className="summary-card-icon"><AlertTriangle size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-warning">
+                      {leaves.filter(l => l.status === 'pending').length} รายการ
+                    </div>
+                    <div className="summary-card-change text-warning">
+                      🟡 รอผู้ดูแลระบบตรวจสอบอนุมัติ
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card expense">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ปฏิเสธ / ไม่อนุมัติ</span>
+                      <div className="summary-card-icon"><XCircle size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-danger">
+                      {leaves.filter(l => l.status === 'rejected').length} รายการ
+                    </div>
+                    <div className="summary-card-change down">
+                      🔴 ไม่อนุมัติคำขอลา
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Header & Action */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    📝 รายการคำขอลาพนักงานทั้งหมด
+                  </h3>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setEditingLeave(null);
+                      setLeaveForm({
+                        employeeName: salaries.length > 0 ? salaries[0].employeeName : '',
+                        leaveType: 'ลาป่วย',
+                        startDate: new Date().toISOString().split('T')[0],
+                        endDate: new Date().toISOString().split('T')[0],
+                        days: 1,
+                        reason: '',
+                        attachmentUrl: ''
+                      });
+                      setShowLeaveModal(true);
+                    }}
+                  >
+                    <Plus size={16} /> ยื่นใบลาพนักงาน
+                  </button>
+                </div>
+
+                {/* Leaves Table */}
+                <div className="glass-card p-0" style={{ overflow: 'hidden' }}>
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>วันที่ยื่นลา</th>
+                          <th>ชื่อพนักงาน</th>
+                          <th>ประเภทการลา</th>
+                          <th>ช่วงวันที่ลา</th>
+                          <th>จำนวนวัน</th>
+                          <th>เหตุผลการลา</th>
+                          <th>สถานะ</th>
+                          <th style={{ textAlign: 'center' }}>จัดการอนุมัติ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaves.length === 0 ? (
+                          <tr>
+                            <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                              ยังไม่มีรายการคำขอลาพนักงานในระบบ
+                            </td>
+                          </tr>
+                        ) : (
+                          leaves.map(item => (
+                            <tr key={item.id}>
+                              <td style={{ fontSize: '0.85rem' }}>{item.requestedAt || item.startDate}</td>
+                              <td style={{ fontWeight: '600' }}>{item.employeeName}</td>
+                              <td>
+                                <span style={{
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  backgroundColor: item.leaveType === 'ลาป่วย' ? 'rgba(239, 68, 68, 0.15)' : item.leaveType === 'ลาพักร้อน' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                  color: item.leaveType === 'ลาป่วย' ? '#ef4444' : item.leaveType === 'ลาพักร้อน' ? '#3b82f6' : '#f59e0b'
+                                }}>
+                                  {item.leaveType}
+                                </span>
+                              </td>
+                              <td style={{ fontSize: '0.85rem' }}>{item.startDate} ถึง {item.endDate}</td>
+                              <td style={{ fontWeight: 'bold' }}>{item.days} วัน</td>
+                              <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.reason || '-'}</td>
+                              <td>
+                                {item.status === 'approved' && <span className="status-badge active">✓ อนุมัติแล้ว</span>}
+                                {item.status === 'pending' && <span className="status-badge pending">⏳ รออนุมัติ</span>}
+                                {item.status === 'rejected' && <span className="status-badge inactive">✕ ไม่อนุมัติ</span>}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                                  {item.status !== 'approved' && (
+                                    <button 
+                                      className="btn btn-success" 
+                                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                      onClick={() => handleUpdateLeaveStatus(item.id, 'approved')}
+                                      title="อนุมัติใบลา"
+                                    >
+                                      ✓ อนุมัติ
+                                    </button>
+                                  )}
+                                  {item.status !== 'rejected' && (
+                                    <button 
+                                      className="btn btn-warning" 
+                                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                      onClick={() => handleUpdateLeaveStatus(item.id, 'rejected')}
+                                      title="ปฏิเสธใบลา"
+                                    >
+                                      ✕ ปฏิเสธ
+                                    </button>
+                                  )}
+                                  <button 
+                                    className="btn btn-danger" 
+                                    style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem' }}
+                                    onClick={() => handleDeleteLeave(item.id)}
+                                    title="ลบรายการ"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= 2. EMPLOYEE ATTENDANCE TAB ================= */}
+            {salarySubTab === 'attendance' && (
+              <div>
+                {/* Attendance Metrics */}
+                <div className="summary-grid mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                  <div className="glass-card summary-card balance">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ลงเวลาแล้ววันนี้</span>
+                      <div className="summary-card-icon"><Clock size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-primary">
+                      {attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length} คน
+                    </div>
+                    <div className="summary-card-change up">
+                      พนักงานที่บันทึกเวลาทำงานวันนี้
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card income">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ตรงเวลา (On Time)</span>
+                      <div className="summary-card-icon"><CheckCircle2 size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-success">
+                      {attendance.filter(a => a.status === 'ontime').length} ครั้ง
+                    </div>
+                    <div className="summary-card-change up">
+                      🟢 เข้างานตามเวลาปกติ
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card vat">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">เข้าสาย (Late)</span>
+                      <div className="summary-card-icon"><AlertTriangle size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-warning">
+                      {attendance.filter(a => a.status === 'late').length} ครั้ง
+                    </div>
+                    <div className="summary-card-change text-warning">
+                      🟡 เข้างานเกินเวลาสแกน
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card advance">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ล่วงเวลา (OT)</span>
+                      <div className="summary-card-icon"><TrendingUp size={18} /></div>
+                    </div>
+                    <div className="summary-card-value" style={{ color: '#8b5cf6' }}>
+                      {attendance.filter(a => a.status === 'ot').length} ครั้ง
+                    </div>
+                    <div className="summary-card-change" style={{ color: '#8b5cf6' }}>
+                      💜 ปฏิบัติงานล่วงเวลา
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attendance Action Bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    ⏱️ บันทึกประวัติการลงเวลาเข้า-ออกงาน
+                  </h3>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setEditingAttendance(null);
+                      setAttendanceForm({
+                        date: new Date().toISOString().split('T')[0],
+                        employeeName: salaries.length > 0 ? salaries[0].employeeName : '',
+                        checkIn: '08:30',
+                        checkOut: '17:30',
+                        status: 'ontime',
+                        location: 'ออฟฟิศหลัก',
+                        note: ''
+                      });
+                      setShowAttendanceModal(true);
+                    }}
+                  >
+                    <Plus size={16} /> บันทึกเวลาเข้า-ออกงาน
+                  </button>
+                </div>
+
+                {/* Attendance Table */}
+                <div className="glass-card p-0" style={{ overflow: 'hidden' }}>
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>วันที่</th>
+                          <th>ชื่อพนักงาน</th>
+                          <th>เวลาเข้างาน</th>
+                          <th>เวลาออกงาน</th>
+                          <th>สถานะ</th>
+                          <th>สถานที่ / หมายเหตุ</th>
+                          <th style={{ textAlign: 'center' }}>จัดการ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {attendance.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                              ยังไม่มีข้อมูลการลงเวลาทำงานในระบบ
+                            </td>
+                          </tr>
+                        ) : (
+                          attendance.map(item => (
+                            <tr key={item.id}>
+                              <td style={{ fontSize: '0.85rem', fontWeight: '500' }}>{item.date}</td>
+                              <td style={{ fontWeight: '600' }}>{item.employeeName}</td>
+                              <td style={{ color: 'var(--success)', fontWeight: 'bold' }}>{item.checkIn || '-'} น.</td>
+                              <td style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{item.checkOut || '-'} น.</td>
+                              <td>
+                                {item.status === 'ontime' && <span className="status-badge active">🟢 ตรงเวลา</span>}
+                                {item.status === 'late' && <span className="status-badge pending">🟡 เข้าสาย</span>}
+                                {item.status === 'ot' && <span className="status-badge" style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>💜 ทำงาน OT</span>}
+                                {item.status === 'absent' && <span className="status-badge inactive">🔴 ขาดงาน</span>}
+                              </td>
+                              <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                {item.location ? `📍 ${item.location}` : '-'} {item.note ? `(${item.note})` : ''}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                                  <button 
+                                    className="btn btn-secondary" 
+                                    style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem' }}
+                                    onClick={() => {
+                                      setEditingAttendance(item);
+                                      setAttendanceForm({ ...item });
+                                      setShowAttendanceModal(true);
+                                    }}
+                                    title="แก้ไขข้อมูล"
+                                  >
+                                    <Edit size={13} />
+                                  </button>
+                                  <button 
+                                    className="btn btn-danger" 
+                                    style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem' }}
+                                    onClick={() => handleDeleteAttendance(item.id)}
+                                    title="ลบรายการ"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= 3. EMPLOYEE DIRECTORY & INFO TAB ================= */}
+            {salarySubTab === 'info' && (
+              <div>
+                {/* Search & Filter Bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="🔍 ค้นหาตามชื่อพนักงาน, ตำแหน่ง, เบอร์โทร..."
+                      value={employeeSearchQuery}
+                      onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <select 
+                      className="form-select" 
+                      value={employeeDeptFilter}
+                      onChange={(e) => setEmployeeDeptFilter(e.target.value)}
+                      style={{ width: '180px' }}
+                    >
+                      <option value="all">ทุกแผนกองค์กร</option>
+                      <option value="ฝ่ายบริหารจัดการ">ฝ่ายบริหารจัดการ</option>
+                      <option value="ฝ่ายปฏิบัติการ / POS">ฝ่ายปฏิบัติการ / POS</option>
+                      <option value="ฝ่ายคลังสินค้าและจัดซื้อ">ฝ่ายคลังสินค้าและจัดซื้อ</option>
+                      <option value="ฝ่ายการเงินและบัญชี">ฝ่ายการเงินและบัญชี</option>
+                    </select>
+                  </div>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setEditingSalary(null);
+                      setSalaryForm({
+                        employeeName: '',
+                        employeeRole: '',
+                        department: 'ฝ่ายปฏิบัติการ / POS',
+                        phone: '',
+                        email: '',
+                        startDate: new Date().toISOString().split('T')[0],
+                        status: 'active',
+                        baseSalary: '',
+                        allowance: '',
+                        deductionSocial: 750,
+                        deductionTax: '',
+                        bankAccount: '',
+                        bankName: 'ธนาคารกสิกรไทย (KBank)'
+                      });
+                      setShowSalaryModal(true);
+                    }}
+                  >
+                    <Plus size={16} /> เพิ่มข้อมูลพนักงานใหม่
+                  </button>
+                </div>
+
+                {/* Employee Profiles Cards Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                  {salaries
+                    .filter(emp => {
+                      const matchQuery = !employeeSearchQuery || 
+                        emp.employeeName.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
+                        emp.employeeRole.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
+                        (emp.phone && emp.phone.includes(employeeSearchQuery));
+                      const matchDept = employeeDeptFilter === 'all' || emp.department === employeeDeptFilter;
+                      return matchQuery && matchDept;
+                    })
+                    .map(emp => (
+                      <div key={emp.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--primary-glow)',
+                            color: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.2rem',
+                            fontWeight: 'bold',
+                            border: '1px solid var(--primary)'
+                          }}>
+                            {emp.employeeName.slice(0, 2)}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: '1rem', fontWeight: 'bold', margin: '0 0 0.2rem 0' }}>{emp.employeeName}</h4>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{emp.employeeRole}</span>
+                          </div>
+                          <span className="status-badge active" style={{ fontSize: '0.7rem' }}>
+                            {emp.status === 'inactive' ? 'พ้นสภาพ' : 'ทำงานอยู่'}
+                          </span>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>🏢 แผนก:</span>
+                            <span style={{ fontWeight: '600' }}>{emp.department || 'ไม่ระบุ'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>📞 เบอร์โทรศัพท์:</span>
+                            <span>{emp.phone || '-'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>✉️ อีเมล:</span>
+                            <span>{emp.email || '-'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>📅 วันเริ่มงาน:</span>
+                            <span>{emp.startDate || '-'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>💵 ฐานเงินเดือน:</span>
+                            <span style={{ fontWeight: 'bold', color: 'var(--success)' }}>฿{emp.baseSalary.toLocaleString()} /เดือน</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>🏦 เลขที่บัญชี:</span>
+                            <span style={{ fontSize: '0.78rem' }}>{emp.bankName} ({emp.bankAccount || '-'})</span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border-color)' }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', justifyContent: 'center' }}
+                            onClick={() => {
+                              setEditingSalary(emp);
+                              setSalaryForm({
+                                employeeName: emp.employeeName,
+                                employeeRole: emp.employeeRole,
+                                department: emp.department || 'ฝ่ายบริหารจัดการ',
+                                phone: emp.phone || '',
+                                email: emp.email || '',
+                                startDate: emp.startDate || new Date().toISOString().split('T')[0],
+                                status: emp.status || 'active',
+                                baseSalary: emp.baseSalary,
+                                allowance: emp.allowance || '',
+                                deductionSocial: emp.deductionSocial || 750,
+                                deductionTax: emp.deductionTax || '',
+                                bankAccount: emp.bankAccount || '',
+                                bankName: emp.bankName || 'ธนาคารกสิกรไทย (KBank)'
+                              });
+                              setShowSalaryModal(true);
+                            }}
+                          >
+                            <Edit size={14} /> แก้ไขข้อมูล
+                          </button>
+                          <button 
+                            className="btn btn-danger" 
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                            onClick={() => handleDeleteSalaryProfile(emp.id)}
+                            title="ลบข้อมูลพนักงาน"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            )}
 
             {salarySubTab === 'overview' && (
               <div>
@@ -7104,6 +7948,207 @@ export default function App() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ================= LEAVE REQUEST MODAL ================= */}
+      {showLeaveModal && (
+        <div className="modal-overlay" onClick={() => setShowLeaveModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📝 {editingLeave ? 'แก้ไขคำขอลาพนักงาน' : 'ยื่นใบลาพนักงานใหม่'}</h2>
+              <button className="modal-close-btn" onClick={() => setShowLeaveModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveLeave}>
+              <div className="modal-body">
+                <div className="form-group mb-3">
+                  <label className="form-label">ชื่อ-นามสกุล พนักงาน</label>
+                  <select 
+                    className="form-select"
+                    required
+                    value={leaveForm.employeeName}
+                    onChange={(e) => setLeaveForm(prev => ({ ...prev, employeeName: e.target.value }))}
+                  >
+                    <option value="">-- เลือกพนักงาน --</option>
+                    {salaries.map(s => (
+                      <option key={s.id} value={s.employeeName}>{s.employeeName} ({s.employeeRole})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">ประเภทการลา</label>
+                    <select 
+                      className="form-select"
+                      value={leaveForm.leaveType}
+                      onChange={(e) => setLeaveForm(prev => ({ ...prev, leaveType: e.target.value }))}
+                    >
+                      <option value="ลาป่วย">🤒 ลาป่วย</option>
+                      <option value="ลากิจ">💼 ลากิจส่วนตัว</option>
+                      <option value="ลาพักร้อน">🏖️ ลาพักร้อนประจำปี</option>
+                      <option value="ลาบวช/ลาคลอด">🍼 ลาบวช / ลาคลอดบุตร</option>
+                      <option value="อื่นๆ">อื่น ๆ</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">จำนวนวันลา (วัน)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      required 
+                      min="0.5" 
+                      step="0.5"
+                      value={leaveForm.days}
+                      onChange={(e) => setLeaveForm(prev => ({ ...prev, days: parseFloat(e.target.value) || 1 }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">วันที่เริ่มลา</label>
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      required
+                      value={leaveForm.startDate}
+                      onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value, endDate: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">วันที่สิ้นสุด</label>
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      required
+                      value={leaveForm.endDate}
+                      onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">เหตุผลการขอลา</label>
+                  <textarea 
+                    className="form-input" 
+                    rows="3"
+                    placeholder="เช่น มีไข้สูง / เดินทางทำธุระต่างจังหวัด"
+                    value={leaveForm.reason}
+                    onChange={(e) => setLeaveForm(prev => ({ ...prev, reason: e.target.value }))}
+                  ></textarea>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowLeaveModal(false)}>ยกเลิก</button>
+                <button type="submit" className="btn btn-primary">บันทึกใบลา</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= ATTENDANCE MODAL ================= */}
+      {showAttendanceModal && (
+        <div className="modal-overlay" onClick={() => setShowAttendanceModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⏱️ {editingAttendance ? 'แก้ไขประวัติลงเวลา' : 'บันทึกเวลาเข้า-ออกงานพนักงาน'}</h2>
+              <button className="modal-close-btn" onClick={() => setShowAttendanceModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveAttendance}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">วันที่ลงเวลา</label>
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      required
+                      value={attendanceForm.date}
+                      onChange={(e) => setAttendanceForm(prev => ({ ...prev, date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">ชื่อ-นามสกุล พนักงาน</label>
+                    <select 
+                      className="form-select"
+                      required
+                      value={attendanceForm.employeeName}
+                      onChange={(e) => setAttendanceForm(prev => ({ ...prev, employeeName: e.target.value }))}
+                    >
+                      <option value="">-- เลือกพนักงาน --</option>
+                      {salaries.map(s => (
+                        <option key={s.id} value={s.employeeName}>{s.employeeName}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">เวลาเข้างาน (Check-In)</label>
+                    <input 
+                      type="time" 
+                      className="form-input" 
+                      value={attendanceForm.checkIn}
+                      onChange={(e) => setAttendanceForm(prev => ({ ...prev, checkIn: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">เวลาออกงาน (Check-Out)</label>
+                    <input 
+                      type="time" 
+                      className="form-input" 
+                      value={attendanceForm.checkOut}
+                      onChange={(e) => setAttendanceForm(prev => ({ ...prev, checkOut: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">สถานะการลงเวลา</label>
+                    <select 
+                      className="form-select"
+                      value={attendanceForm.status}
+                      onChange={(e) => setAttendanceForm(prev => ({ ...prev, status: e.target.value }))}
+                    >
+                      <option value="ontime">🟢 ตรงเวลา (On Time)</option>
+                      <option value="late">🟡 เข้าสาย (Late)</option>
+                      <option value="ot">💜 ล่วงเวลา (OT)</option>
+                      <option value="absent">🔴 ขาดงาน (Absent)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">สถานที่ปฏิบัติงาน</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="เช่น ออฟฟิศหลัก, WFH, ไซต์งาน"
+                      value={attendanceForm.location}
+                      onChange={(e) => setAttendanceForm(prev => ({ ...prev, location: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">หมายเหตุเพิ่มเติม</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="เช่น รถติดหนัก, ปฏิบัติงานนอกสถานที่"
+                    value={attendanceForm.note}
+                    onChange={(e) => setAttendanceForm(prev => ({ ...prev, note: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAttendanceModal(false)}>ยกเลิก</button>
+                <button type="submit" className="btn btn-primary">บันทึกการลงเวลา</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
