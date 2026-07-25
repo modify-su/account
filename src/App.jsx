@@ -491,6 +491,7 @@ export default function App() {
   const [employeeDeptFilter, setEmployeeDeptFilter] = useState('all');
 
   const [salarySubTab, setSalarySubTab] = useState('leave'); // leave, attendance, info, overview, history, profiles
+  const [isSalarySubMenuOpen, setIsSalarySubMenuOpen] = useState(true);
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [editingSalary, setEditingSalary] = useState(null);
   const [salaryForm, setSalaryForm] = useState({
@@ -3195,8 +3196,14 @@ export default function App() {
               <li 
                 className={`nav-item ${activeTab === 'salary' ? 'active' : ''}`} 
                 onClick={() => {
-                  setActiveTab('salary');
+                  if (activeTab !== 'salary') {
+                    setActiveTab('salary');
+                    setIsSalarySubMenuOpen(true);
+                  } else {
+                    setIsSalarySubMenuOpen(prev => !prev);
+                  }
                 }}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
               >
                 <Users size={18} />
                 <span>{menuNames.salary || 'บุคลากร & เงินเดือน'}</span>
@@ -3204,16 +3211,27 @@ export default function App() {
                   size={14} 
                   style={{ 
                     marginLeft: 'auto', 
-                    transform: activeTab === 'salary' ? 'rotate(180deg)' : 'none', 
-                    transition: 'transform 0.2s' 
+                    transform: (activeTab === 'salary' && isSalarySubMenuOpen) ? 'rotate(180deg)' : 'rotate(0deg)', 
+                    transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)' 
                   }} 
                 />
               </li>
 
-              {activeTab === 'salary' && (
-                <div style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', margin: '0.25rem 0 0.5rem 0' }}>
+              {activeTab === 'salary' && isSalarySubMenuOpen && (
+                <div 
+                  className="sidebar-submenu-container"
+                  style={{ 
+                    paddingLeft: '1.25rem', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '0.2rem', 
+                    margin: '0.25rem 0 0.5rem 0',
+                    animation: 'fadeIn 0.2s ease-out'
+                  }}
+                >
                   <div 
-                    onClick={() => setSalarySubTab('leave')}
+                    className={`sidebar-submenu-item ${salarySubTab === 'leave' ? 'active-sub' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setSalarySubTab('leave'); }}
                     style={{
                       padding: '0.45rem 0.75rem',
                       borderRadius: 'var(--radius-sm)',
@@ -3232,7 +3250,8 @@ export default function App() {
                     <span>1. การลาพนักงาน</span>
                   </div>
                   <div 
-                    onClick={() => setSalarySubTab('attendance')}
+                    className={`sidebar-submenu-item ${salarySubTab === 'attendance' ? 'active-sub' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setSalarySubTab('attendance'); }}
                     style={{
                       padding: '0.45rem 0.75rem',
                       borderRadius: 'var(--radius-sm)',
@@ -3251,7 +3270,8 @@ export default function App() {
                     <span>2. การลงเวลาพนักงาน</span>
                   </div>
                   <div 
-                    onClick={() => setSalarySubTab('info')}
+                    className={`sidebar-submenu-item ${salarySubTab === 'info' ? 'active-sub' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setSalarySubTab('info'); }}
                     style={{
                       padding: '0.45rem 0.75rem',
                       borderRadius: 'var(--radius-sm)',
@@ -3270,7 +3290,8 @@ export default function App() {
                     <span>3. ข้อมูลพนักงาน</span>
                   </div>
                   <div 
-                    onClick={() => setSalarySubTab('overview')}
+                    className={`sidebar-submenu-item ${salarySubTab === 'overview' ? 'active-sub' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setSalarySubTab('overview'); }}
                     style={{
                       padding: '0.45rem 0.75rem',
                       borderRadius: 'var(--radius-sm)',

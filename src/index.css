@@ -162,6 +162,16 @@ body {
   padding-left: calc(1rem - 3px);
 }
 
+.sidebar-submenu-item {
+  transition: all 0.2s ease !important;
+}
+
+.sidebar-submenu-item:hover {
+  background-color: var(--primary-glow) !important;
+  color: var(--primary) !important;
+  transform: translateX(3px);
+}
+
 .sidebar-footer {
   display: flex;
   flex-direction: column;
