@@ -3767,20 +3767,6 @@ export default function App() {
                     onChange={handleScanReceiptUpload} 
                   />
                 </label>
-                <button className="btn btn-primary" onClick={() => {
-                  setTxForm({
-                    type: 'expense',
-                    date: new Date().toISOString().split('T')[0],
-                    amount: '',
-                    category: 'ค่าอาหารและเครื่องดื่ม',
-                    description: '',
-                    ref: ''
-                  });
-                  setEditingTransaction(null);
-                  setShowAddModal(true);
-                }}>
-                  <Plus size={16} /> เพิ่มรายการใหม่
-                </button>
               </div>
             </header>
 
