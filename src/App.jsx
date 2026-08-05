@@ -148,60 +148,7 @@ const DEFAULT_ATTENDANCE = [
   { id: 'att_3', date: '2026-07-25', employeeName: 'พนักงานทั่วไป', checkIn: '08:30', checkOut: '17:35', status: 'ontime', location: 'ออฟฟิศหลัก' }
 ];
 
-const DEFAULT_LINE_PERMISSIONS = [
-  {
-    id: 'lup_1',
-    employeeName: 'ผู้ดูแลระบบสูงสุด',
-    lineUserId: '@admin_flowledger',
-    role: 'admin',
-    isAllowed: true,
-    permissions: {
-      canSubmitLeave: true,
-      canUploadSlip: true,
-      canCheckLeaveBalance: true,
-      canViewFinancialSummary: true
-    }
-  },
-  {
-    id: 'lup_2',
-    employeeName: 'นายศักรินทร์ สุขใจ',
-    lineUserId: '@sakarin_p',
-    role: 'staff',
-    isAllowed: true,
-    permissions: {
-      canSubmitLeave: true,
-      canUploadSlip: true,
-      canCheckLeaveBalance: true,
-      canViewFinancialSummary: false
-    }
-  },
-  {
-    id: 'lup_3',
-    employeeName: 'นางสาวเอวาริณณ์ บัญชีหลักบริษัท',
-    lineUserId: '@awarin_m',
-    role: 'staff',
-    isAllowed: true,
-    permissions: {
-      canSubmitLeave: true,
-      canUploadSlip: true,
-      canCheckLeaveBalance: true,
-      canViewFinancialSummary: false
-    }
-  },
-  {
-    id: 'lup_4',
-    employeeName: 'พนักงานทั่วไป',
-    lineUserId: '@staff_flowledger',
-    role: 'staff',
-    isAllowed: false,
-    permissions: {
-      canSubmitLeave: false,
-      canUploadSlip: false,
-      canCheckLeaveBalance: false,
-      canViewFinancialSummary: false
-    }
-  }
-];
+const DEFAULT_LINE_PERMISSIONS = [];
 
 const MOCK_SLIPS = [
   {
@@ -643,32 +590,41 @@ export default function App() {
     e.target.value = null;
   };
 
-  // LINE Bot Permission Management State
+  // LINE Bot Permission Management State (Synchronized directly with real system users)
   const [linePermissions, setLinePermissions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('flowledger_line_permissions_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error('Error reading line permissions:', e);
-    }
-    return DEFAULT_LINE_PERMISSIONS;
+    const saved = safeJSONParse('flowledger_line_permissions_v1', []);
+    return Array.isArray(saved) ? saved.filter(p => p && p.id && !p.id.startsWith('lup_')) : [];
   });
-  const [lineSubTab, setLineSubTab] = useState('permissions'); // 'permissions' or 'simulator'
-  const [selectedLineUserId, setSelectedLineUserId] = useState('lup_1');
+
+  // Dynamically compute effective LINE permissions linked ONLY to actual system users (users)
+  const effectiveLinePermissions = useMemo(() => {
+    const systemUsers = (users && users.length > 0) ? users : [
+      { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', role: 'admin' },
+      { id: 'u2', name: 'พนักงานทั่วไป', username: 'staff', role: 'staff' }
+    ];
+
+    return systemUsers.map(u => {
+      const savedPerm = (linePermissions || []).find(p => p && (p.id === u.id || p.lineUserId === `@${u.username}` || p.employeeName === u.name));
+      return {
+        id: u.id,
+        employeeName: u.name || u.username,
+        lineUserId: `@${u.username || 'user'}`,
+        role: u.role || 'staff',
+        isAllowed: savedPerm ? savedPerm.isAllowed !== false : true
+      };
+    });
+  }, [users, linePermissions]);
+
+  const [selectedLineUserId, setSelectedLineUserId] = useState(() => {
+    return (users && users.length > 0) ? users[0].id : 'u1';
+  });
   const [showAddLineUserModal, setShowAddLineUserModal] = useState(false);
   const [lineUserSearch, setLineUserSearch] = useState('');
   const [lineUserForm, setLineUserForm] = useState({
     employeeName: '',
     lineUserId: '',
     role: 'staff',
-    isAllowed: true,
-    canSubmitLeave: true,
-    canUploadSlip: true,
-    canCheckLeaveBalance: true,
-    canViewFinancialSummary: false
+    isAllowed: true
   });
 
   useEffect(() => {
@@ -688,25 +644,38 @@ export default function App() {
 
   // Toggle main LINE Bot access permission for user
   const handleToggleLineUserAccess = (id) => {
-    setLinePermissions(prev => prev.map(user => {
-      if (user.id === id) {
-        const nextAllowed = !user.isAllowed;
-        const updated = {
-          ...user,
+    setLinePermissions(prev => {
+      const existing = (prev || []).find(u => u && u.id === id);
+      const targetEffective = effectiveLinePermissions.find(u => u.id === id);
+      const currentAllowed = targetEffective ? targetEffective.isAllowed : true;
+      const nextAllowed = !currentAllowed;
+
+      let updatedList;
+      if (existing) {
+        updatedList = (prev || []).map(u => u.id === id ? { ...u, isAllowed: nextAllowed } : u);
+      } else {
+        const newUserPerm = {
+          id: id,
+          employeeName: targetEffective?.employeeName || 'พนักงาน',
+          lineUserId: targetEffective?.lineUserId || '@user',
+          role: targetEffective?.role || 'staff',
           isAllowed: nextAllowed
         };
-        if (isFirebaseConfigured()) {
-          saveDocToCloud('line_permissions', updated);
-        }
-        showToast(
-          nextAllowed ? 'success' : 'warning',
-          nextAllowed ? 'เปิดสิทธิ์การใช้งาน' : 'ปิดสิทธิ์การใช้งาน',
-          `${nextAllowed ? '🟢 เปิดสิทธิ์' : '🔴 ปิดสิทธิ์'} การใช้งาน LINE Bot ของคุณ ${user.employeeName} เรียบร้อยแล้ว`
-        );
-        return updated;
+        updatedList = [...(prev || []), newUserPerm];
       }
-      return user;
-    }));
+
+      if (isFirebaseConfigured() && targetEffective) {
+        saveDocToCloud('line_permissions', { id: id, isAllowed: nextAllowed, employeeName: targetEffective.employeeName, lineUserId: targetEffective.lineUserId });
+      }
+
+      showToast(
+        nextAllowed ? 'success' : 'warning',
+        nextAllowed ? 'เปิดสิทธิ์การใช้งาน' : 'ปิดสิทธิ์การใช้งาน',
+        `${nextAllowed ? '🟢 เปิดสิทธิ์' : '🔴 ปิดสิทธิ์'} การใช้งาน LINE Bot ของคุณ ${targetEffective?.employeeName || 'พนักงาน'} เรียบร้อยแล้ว`
+      );
+
+      return updatedList;
+    });
   };
 
   // Toggle granular feature permission for user
@@ -731,7 +700,7 @@ export default function App() {
     }));
   };
 
-  // Save new LINE User permission mapping
+  // Save new LINE User permission mapping by connecting directly to a system user
   const handleSaveLineUserPermission = (e) => {
     e.preventDefault();
     if (!lineUserForm.employeeName || !lineUserForm.lineUserId) {
@@ -739,27 +708,44 @@ export default function App() {
       return;
     }
 
-    const newUser = {
-      id: `lup_${Date.now()}`,
-      employeeName: lineUserForm.employeeName,
-      lineUserId: lineUserForm.lineUserId.startsWith('@') ? lineUserForm.lineUserId : `@${lineUserForm.lineUserId}`,
-      role: lineUserForm.role,
-      isAllowed: lineUserForm.isAllowed,
-      permissions: {
-        canSubmitLeave: lineUserForm.canSubmitLeave,
-        canUploadSlip: lineUserForm.canUploadSlip,
-        canCheckLeaveBalance: lineUserForm.canCheckLeaveBalance,
-        canViewFinancialSummary: lineUserForm.canViewFinancialSummary
-      }
-    };
+    const cleanUsername = lineUserForm.lineUserId.replace('@', '').trim();
+    const existingSysUser = (users || []).find(u => u.name === lineUserForm.employeeName || u.username === cleanUsername);
 
-    if (isFirebaseConfigured()) {
-      saveDocToCloud('line_permissions', newUser);
-    } else {
-      setLinePermissions(prev => [newUser, ...prev]);
+    const userId = existingSysUser ? existingSysUser.id : `u_${Date.now()}`;
+
+    // If user does not exist in system users list, add them as real system user
+    if (!existingSysUser) {
+      const newSysUser = {
+        id: userId,
+        name: lineUserForm.employeeName,
+        username: cleanUsername,
+        password: 'password123',
+        role: lineUserForm.role || 'staff'
+      };
+      setUsers(prev => [...prev, newSysUser]);
+      if (isFirebaseConfigured()) {
+        saveDocToCloud('users', newSysUser);
+      }
     }
 
-    showToast('success', 'บันทึกสำเร็จ', `เพิ่มสิทธิ์ผูก LINE Bot ให้กับ ${newUser.employeeName} เรียบร้อยแล้ว`);
+    const newLinePerm = {
+      id: userId,
+      employeeName: lineUserForm.employeeName,
+      lineUserId: `@${cleanUsername}`,
+      role: lineUserForm.role,
+      isAllowed: lineUserForm.isAllowed
+    };
+
+    setLinePermissions(prev => {
+      const filtered = (prev || []).filter(u => u && u.id !== userId);
+      return [...filtered, newLinePerm];
+    });
+
+    if (isFirebaseConfigured()) {
+      saveDocToCloud('line_permissions', newLinePerm);
+    }
+
+    showToast('success', 'บันทึกสำเร็จ', `เพิ่มสิทธิ์ผูก LINE Bot ให้กับ ${newLinePerm.employeeName} เรียบร้อยแล้ว`);
     setShowAddLineUserModal(false);
   };
 
@@ -769,10 +755,11 @@ export default function App() {
       return;
     }
     if (confirm('คุณต้องการลบสิทธิ์และยกเลิกผูก LINE User นี้ใช่หรือไม่?')) {
+      setUsers(prev => (prev || []).filter(u => u && u.id !== id));
+      setLinePermissions(prev => (prev || []).filter(u => u && u.id !== id));
       if (isFirebaseConfigured()) {
+        deleteDocFromCloud('users', id);
         deleteDocFromCloud('line_permissions', id);
-      } else {
-        setLinePermissions(prev => prev.filter(u => u.id !== id));
       }
       showToast('warning', 'ลบสิทธิ์เรียบร้อย', 'ยกเลิกสิทธิ์ผูก LINE User เรียบร้อยแล้ว');
     }
@@ -2736,8 +2723,8 @@ export default function App() {
   };
 
   // --- LINE BOT INTERACTIVE SIMULATOR ---
-  const activeLineUser = (Array.isArray(linePermissions) && linePermissions.find(u => u && u.id === selectedLineUserId)) || 
-                         (Array.isArray(linePermissions) && linePermissions[0]) || 
+  const activeLineUser = (Array.isArray(effectiveLinePermissions) && effectiveLinePermissions.find(u => u && u.id === selectedLineUserId)) || 
+                         (Array.isArray(effectiveLinePermissions) && effectiveLinePermissions[0]) || 
                          { id: 'default', employeeName: 'ผู้ใช้งาน', lineUserId: '@user', isAllowed: true, permissions: {} };
 
   const handleLineSendMessage = (text) => {
@@ -4882,7 +4869,7 @@ export default function App() {
                       <div className="summary-card-icon"><Users size={18} /></div>
                     </div>
                     <div className="summary-card-value text-primary">
-                      {(linePermissions || []).length} บัญชี
+                      {(effectiveLinePermissions || []).length} บัญชี
                     </div>
                     <div className="summary-card-change up">
                       พนักงานที่ลงทะเบียนสิทธิ์ในระบบ
@@ -4895,7 +4882,7 @@ export default function App() {
                       <div className="summary-card-icon"><CheckCircle2 size={18} /></div>
                     </div>
                     <div className="summary-card-value text-success">
-                      {(linePermissions || []).filter(u => u && u.isAllowed).length} บัญชี
+                      {(effectiveLinePermissions || []).filter(u => u && u.isAllowed).length} บัญชี
                     </div>
                     <div className="summary-card-change up">
                       🟢 สิทธิ์การใช้งานปกติ
@@ -4908,7 +4895,7 @@ export default function App() {
                       <div className="summary-card-icon"><XCircle size={18} /></div>
                     </div>
                     <div className="summary-card-value text-danger">
-                      {(linePermissions || []).filter(u => u && !u.isAllowed).length} บัญชี
+                      {(effectiveLinePermissions || []).filter(u => u && !u.isAllowed).length} บัญชี
                     </div>
                     <div className="summary-card-change down">
                       🔴 ถูกปิดสิทธิ์โดย Admin
@@ -4935,11 +4922,7 @@ export default function App() {
                         employeeName: (salaries && salaries.length > 0) ? salaries[0].employeeName : '',
                         lineUserId: '',
                         role: 'staff',
-                        isAllowed: true,
-                        canSubmitLeave: true,
-                        canUploadSlip: true,
-                        canCheckLeaveBalance: true,
-                        canViewFinancialSummary: false
+                        isAllowed: true
                       });
                       setShowAddLineUserModal(true);
                     }}
@@ -4963,7 +4946,7 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(linePermissions || [])
+                        {(effectiveLinePermissions || [])
                           .filter(u => u && (!lineUserSearch || 
                             (u.employeeName && u.employeeName.toLowerCase().includes(lineUserSearch.toLowerCase())) ||
                             (u.lineUserId && u.lineUserId.toLowerCase().includes(lineUserSearch.toLowerCase()))
@@ -5027,7 +5010,7 @@ export default function App() {
                       onChange={(e) => setSelectedLineUserId(e.target.value)}
                       style={{ width: '260px' }}
                     >
-                      {(linePermissions || []).map(u => u ? (
+                      {(effectiveLinePermissions || []).map(u => u ? (
                         <option key={u.id} value={u.id}>
                           {u.employeeName || 'พนักงาน'} ({u.lineUserId || '@user'}) - {u.isAllowed ? '🟢 เปิดสิทธิ์' : '🔴 ปิดสิทธิ์'}
                         </option>
@@ -8958,43 +8941,6 @@ export default function App() {
                   </label>
                 </div>
 
-                <div className="form-group" style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem' }}>
-                  <label className="form-label mb-2" style={{ fontWeight: 'bold' }}>กำหนดสิทธิ์ฟังก์ชันย่อย</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox"
-                        checked={lineUserForm.canSubmitLeave}
-                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canSubmitLeave: e.target.checked }))}
-                      />
-                      <span>📝 ยื่นใบลาป่วยทาง LINE Bot</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox"
-                        checked={lineUserForm.canUploadSlip}
-                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canUploadSlip: e.target.checked }))}
-                      />
-                      <span>🧾 ส่งภาพสลิป/บิลสำรองจ่าย</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox"
-                        checked={lineUserForm.canCheckLeaveBalance}
-                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canCheckLeaveBalance: e.target.checked }))}
-                      />
-                      <span>⏱️ เช็กวันลาคงเหลือ/ประวัติลงเวลา</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox"
-                        checked={lineUserForm.canViewFinancialSummary}
-                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canViewFinancialSummary: e.target.checked }))}
-                      />
-                      <span>📊 ดูรายงานสรุปเงินออฟฟิศ (เฉพาะ Admin)</span>
-                    </label>
-                  </div>
-                </div>
               </div>
 
               <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
