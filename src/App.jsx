@@ -281,32 +281,69 @@ const MOCK_SLIPS = [
   }
 ];
 
+const DEFAULT_USERS = [
+  { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', password: 'password123', role: 'admin' },
+  { id: 'u2', name: 'พนักงานทั่วไป', username: 'staff', password: 'password123', role: 'staff' }
+];
+
+const DEFAULT_ADMIN_USER = { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', password: 'password123', role: 'admin' };
+
+const DEFAULT_SETTINGS = {
+  companyName: 'บริษัท โฟลว์เล็ดเจอร์ ซอฟต์แวร์ จำกัด',
+  companyTaxId: '0105566000123',
+  companyAddress: '123/45 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
+  companyPhone: '02-123-4567',
+  lineBotName: 'FlowLedger OCR Bot',
+  lineChannelToken: 'channel_token_mock_1234567890abcdef',
+  lineWebhookUrl: 'https://api.flowledger.pro/v1/webhook',
+  slipokApiKey: '',
+  slipokBranchId: '',
+  lineBotActive: true,
+  appName: 'FlowLedger Pro',
+  appLogo: '✨'
+};
+
+const DEFAULT_MENU_NAMES = {
+  dashboard: 'หน้าหลัก & แดชบอร์ด',
+  transactions: 'บัญชีรายรับ-รายจ่าย',
+  pos: 'ใบซื้อขายหน้าร้าน POS',
+  invoices: 'ออกใบกำกับภาษี',
+  linebot: 'ระบบ LINE Bot',
+  dochub: 'คลังเอกสารจัดเก็บ',
+  salary: 'เงินเดือนพนักงาน',
+  settings: 'ตั้งค่าระบบ'
+};
+
+const DEFAULT_CHAT_MESSAGES = [
+  {
+    id: 'm1',
+    sender: 'bot',
+    text: 'สวัสดีครับ! ยินดีต้อนรับสู่ระบบ FlowLedger OCR Bot 🤖\n\nท่านสามารถถ่ายรูปภาพหรือส่งรูปภาพสลิปโอนเงิน หรือใบเสร็จสินค้า เพื่อให้ระบบช่วยสแกนและบันทึกบัญชีออฟฟิศย้อนหลังได้ทันทีครับ\n\nคำสั่งที่แนะนำ:\n👉 พิมพ์ "/summary" เพื่อดูสรุปรายรับรายจ่ายล่าสุด\n👉 พิมพ์ "/list" เพื่อเรียกดูรายการคลังเอกสารล่าสุด',
+    time: '12:00:00'
+  }
+];
+
+const safeJSONParse = (key, fallback) => {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved && saved !== 'undefined' && saved !== 'null') {
+      const parsed = JSON.parse(saved);
+      if (parsed !== null && parsed !== undefined) return parsed;
+    }
+  } catch (e) {
+    console.warn(`[Storage Sanitizer] Cleared invalid key "${key}":`, e);
+    try { localStorage.removeItem(key); } catch {}
+  }
+  return fallback;
+};
+
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [activeTab, setActiveTab] = useState('dashboard');
   
   // --- USER AUTHENTICATION & DATABASE STATES ---
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('users');
-    return saved ? JSON.parse(saved) : [
-      { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', password: 'password123', role: 'admin' },
-      { id: 'u2', name: 'พนักงานทั่วไป', username: 'staff', password: 'password123', role: 'staff' }
-    ];
-  });
-
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('current_user');
-      if (saved && saved !== 'null' && saved !== 'undefined') {
-        const parsed = JSON.parse(saved);
-        if (parsed && (parsed.id || parsed.username)) return parsed;
-      }
-    } catch (e) {
-      console.error('Error loading current user:', e);
-    }
-    // Default logged-in Admin account so user opens directly to Dashboard!
-    return { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', password: 'password123', role: 'admin' };
-  });
+  const [users, setUsers] = useState(() => safeJSONParse('users', DEFAULT_USERS));
+  const [currentUser, setCurrentUser] = useState(() => safeJSONParse('current_user', DEFAULT_ADMIN_USER));
 
   const [loginTab, setLoginTab] = useState('login'); // login, register
   const [authError, setAuthError] = useState('');
@@ -326,8 +363,8 @@ export default function App() {
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
   const [selectedGoogleAccount, setSelectedGoogleAccount] = useState(null);
   const [firebaseConfigInput, setFirebaseConfigInput] = useState(() => {
-    const saved = localStorage.getItem("flowledger_firebase_config");
-    return saved ? JSON.stringify(JSON.parse(saved), null, 2) : "";
+    const savedConfig = safeJSONParse("flowledger_firebase_config", null);
+    return savedConfig ? JSON.stringify(savedConfig, null, 2) : "";
   });
 
   // Settings Sub-Tab
@@ -350,27 +387,7 @@ export default function App() {
   };
 
   // --- MENU NAME CUSTOMIZATION STATES ---
-  const [menuNames, setMenuNames] = useState(() => {
-    const saved = localStorage.getItem('menu_names');
-    const defaults = {
-      dashboard: 'หน้าหลัก & แดชบอร์ด',
-      transactions: 'บัญชีรายรับ-รายจ่าย',
-      pos: 'ใบซื้อขายหน้าร้าน POS',
-      invoices: 'ออกใบกำกับภาษี',
-      linebot: 'ระบบ LINE Bot',
-      dochub: 'คลังเอกสารจัดเก็บ',
-      salary: 'เงินเดือนพนักงาน',
-      settings: 'ตั้งค่าระบบ'
-    };
-    if (saved) {
-      try {
-        return { ...defaults, ...JSON.parse(saved) };
-      } catch {
-        return defaults;
-      }
-    }
-    return defaults;
-  });
+  const [menuNames, setMenuNames] = useState(() => ({ ...DEFAULT_MENU_NAMES, ...safeJSONParse('menu_names', {}) }));
   const [showMenuEditModal, setShowMenuEditModal] = useState(false);
   const [menuForm, setMenuForm] = useState({
     dashboard: menuNames.dashboard,
@@ -406,48 +423,14 @@ export default function App() {
   });
 
   // Ledger and Invoice states
-  const [transactions, setTransactions] = useState(() => {
-    const saved = localStorage.getItem('flowledger_txs_v3');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
-  
-  const [invoices, setInvoices] = useState(() => {
-    const saved = localStorage.getItem('flowledger_invs_v3');
-    return saved ? JSON.parse(saved) : INITIAL_INVOICES;
-  });
+  const [transactions, setTransactions] = useState(() => safeJSONParse('flowledger_txs_v3', INITIAL_TRANSACTIONS));
+  const [invoices, setInvoices] = useState(() => safeJSONParse('flowledger_invs_v3', INITIAL_INVOICES));
 
   // Settings State
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('office_settings');
-    const defaults = {
-      companyName: 'บริษัท โโฟลว์เล็ดเจอร์ ซอฟต์แวร์ จำกัด',
-      companyTaxId: '0105566000123',
-      companyAddress: '123/45 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-      companyPhone: '02-123-4567',
-      lineBotName: 'FlowLedger OCR Bot',
-      lineChannelToken: 'channel_token_mock_1234567890abcdef',
-      lineWebhookUrl: 'https://api.flowledger.pro/v1/webhook',
-      slipokApiKey: '',
-      slipokBranchId: '',
-      lineBotActive: true,
-      appName: 'FlowLedger Pro',
-      appLogo: '✨'
-    };
-    if (saved) {
-      try {
-        return { ...defaults, ...JSON.parse(saved) };
-      } catch {
-        return defaults;
-      }
-    }
-    return defaults;
-  });
+  const [settings, setSettings] = useState(() => ({ ...DEFAULT_SETTINGS, ...safeJSONParse('office_settings', {}) }));
 
   // POS Product Catalog State
-  const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('pos_products');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [products, setProducts] = useState(() => safeJSONParse('pos_products', []));
 
   // POS Cart State
   const [cart, setCart] = useState([]);
@@ -457,17 +440,7 @@ export default function App() {
   const [posCashReceived, setPosCashReceived] = useState('');
 
   // LINE Bot Simulator State
-  const [chatMessages, setChatMessages] = useState(() => {
-    const saved = localStorage.getItem('flowledger_chat_messages_v3');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'm1',
-        sender: 'bot',
-        text: 'สวัสดีครับ! ยินดีต้อนรับสู่ระบบ FlowLedger OCR Bot 🤖\n\nท่านสามารถถ่ายรูปภาพหรือส่งรูปภาพสลิปโอนเงิน หรือใบเสร็จสินค้า เพื่อให้ระบบช่วยสแกนและบันทึกบัญชีออฟฟิศย้อนหลังได้ทันทีครับ\n\nคำสั่งที่แนะนำ:\n👉 พิมพ์ "/summary" เพื่อดูสรุปรายรับรายจ่ายล่าสุด\n👉 พิมพ์ "/list" เพื่อเรียกดูรายการคลังเอกสารล่าสุด',
-        time: '12:00:00'
-      }
-    ];
-  });
+  const [chatMessages, setChatMessages] = useState(() => safeJSONParse('flowledger_chat_messages_v3', DEFAULT_CHAT_MESSAGES));
   const [chatInput, setChatInput] = useState('');
   const [isBotTyping, setIsBotTyping] = useState(false);
   const [activeLineSlip, setActiveLineSlip] = useState(null);
@@ -476,10 +449,7 @@ export default function App() {
   const [lineOCRCoords, setLineOCRCoords] = useState([]); // Visual Bounding Boxes [{x, y, w, h, label, active}]
 
   // Document Hub Archive State
-  const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('flowledger_docs_v3');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [documents, setDocuments] = useState(() => safeJSONParse('flowledger_docs_v3', []));
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [docFilterType, setDocFilterType] = useState('all');
@@ -510,21 +480,11 @@ export default function App() {
   });
 
   // Employee Salary (Payroll), Leave, Attendance & HR State
-  const [salaries, setSalaries] = useState(() => {
-    const saved = localStorage.getItem('flowledger_salaries_v3');
-    return saved ? JSON.parse(saved) : DEFAULT_SALARY_PROFILES;
-  });
-
-  const [payrollHistory, setPayrollHistory] = useState(() => {
-    const saved = localStorage.getItem('flowledger_payroll_history_v3');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [salaries, setSalaries] = useState(() => safeJSONParse('flowledger_salaries_v3', DEFAULT_SALARY_PROFILES));
+  const [payrollHistory, setPayrollHistory] = useState(() => safeJSONParse('flowledger_payroll_history_v3', []));
 
   // Employee Leave State
-  const [leaves, setLeaves] = useState(() => {
-    const saved = localStorage.getItem('flowledger_leaves_v1');
-    return saved ? JSON.parse(saved) : DEFAULT_LEAVES;
-  });
+  const [leaves, setLeaves] = useState(() => safeJSONParse('flowledger_leaves_v1', DEFAULT_LEAVES));
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [leaveForm, setLeaveForm] = useState({
@@ -541,10 +501,7 @@ export default function App() {
   });
 
   // Employee Attendance State
-  const [attendance, setAttendance] = useState(() => {
-    const saved = localStorage.getItem('flowledger_attendance_v1');
-    return saved ? JSON.parse(saved) : DEFAULT_ATTENDANCE;
-  });
+  const [attendance, setAttendance] = useState(() => safeJSONParse('flowledger_attendance_v1', DEFAULT_ATTENDANCE));
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState(null);
   const [attendanceForm, setAttendanceForm] = useState({
