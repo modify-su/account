@@ -43,6 +43,10 @@ import {
   UserCheck,
   FileCheck,
   Briefcase,
+  Paperclip,
+  Upload,
+  Download,
+  File,
   MapPin,
   User
 } from 'lucide-react';
@@ -466,7 +470,10 @@ export default function App() {
     endDate: new Date().toISOString().split('T')[0],
     days: 1,
     reason: '',
-    attachmentUrl: ''
+    attachmentUrl: '',
+    attachmentName: '',
+    attachmentType: '',
+    attachmentExt: ''
   });
 
   // Employee Attendance State
@@ -540,8 +547,80 @@ export default function App() {
     amount: '',
     category: 'ค่าอาหารและเครื่องดื่ม',
     description: '',
-    ref: ''
+    ref: '',
+    attachmentUrl: '',
+    attachmentName: '',
+    attachmentType: '',
+    attachmentExt: ''
   });
+
+  // Generic File Upload Handler (Image & Document Files like PDF/DOCX)
+  const handleFileUpload = (e, setFormState) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const base64Data = event.target.result;
+      const isImg = file.type.startsWith('image/');
+      const fileExt = file.name.split('.').pop().toUpperCase();
+
+      setFormState(prev => ({
+        ...prev,
+        attachmentUrl: base64Data,
+        attachmentName: file.name,
+        attachmentType: isImg ? 'image' : 'document',
+        attachmentExt: fileExt,
+        imageUrl: isImg ? base64Data : (prev.imageUrl || '')
+      }));
+      showToast('success', 'แนบไฟล์สำเร็จ', `แนบไฟล์ "${file.name}" เรียบร้อยแล้ว`);
+    };
+
+    reader.readAsDataURL(file);
+    e.target.value = null;
+  };
+
+  // Direct Document Hub File Attachment Upload
+  const handleDirectDocUpload = (e) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const base64Data = event.target.result;
+      const isImg = file.type.startsWith('image/');
+      const fileExt = file.name.split('.').pop().toUpperCase();
+
+      const newDoc = {
+        id: `doc_${Date.now()}`,
+        title: file.name,
+        category: isImg ? 'ภาพเอกสารแนบ' : `ไฟล์เอกสาร ${fileExt}`,
+        merchant: file.name,
+        amount: 0,
+        ref: `DOC-${Date.now().toString().slice(-6)}`,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        sender: currentUser.name || 'ผู้ใช้งานระบบ',
+        details: `อัปโหลดแนบไฟล์เอกสาร (${fileExt}) เข้าสู่ระบบ`,
+        imageUrl: isImg ? base64Data : '',
+        attachmentUrl: base64Data,
+        attachmentName: file.name,
+        attachmentType: isImg ? 'image' : 'document',
+        attachmentExt: fileExt,
+        type: 'receipt'
+      };
+
+      if (isFirebaseConfigured()) {
+        saveDocToCloud('documents', newDoc);
+      } else {
+        setDocuments(prev => [newDoc, ...prev]);
+      }
+      showToast('success', 'แนบเอกสารสำเร็จ', `เพิ่มไฟล์ "${file.name}" เข้าสู่คลังเอกสารเรียบร้อยแล้ว`);
+    };
+
+    reader.readAsDataURL(file);
+    e.target.value = null;
+  };
 
   // Filtering general ledger state
   const [filterType, setFilterType] = useState('all');
@@ -2291,7 +2370,11 @@ export default function App() {
       amount: '',
       category: 'ค่าอาหารและเครื่องดื่ม',
       description: '',
-      ref: ''
+      ref: '',
+      attachmentUrl: '',
+      attachmentName: '',
+      attachmentType: '',
+      attachmentExt: ''
     });
     setShowAddModal(false);
   };
@@ -2355,7 +2438,11 @@ export default function App() {
       amount: tx.amount,
       category: tx.category,
       description: tx.description,
-      ref: tx.ref || ''
+      ref: tx.ref || '',
+      attachmentUrl: tx.attachmentUrl || tx.imageUrl || '',
+      attachmentName: tx.attachmentName || '',
+      attachmentType: tx.attachmentType || (tx.imageUrl ? 'image' : ''),
+      attachmentExt: tx.attachmentExt || ''
     });
     setShowAddModal(true);
   };
@@ -5071,7 +5158,31 @@ export default function App() {
                               </td>
                               <td style={{ fontSize: '0.85rem' }}>{item.startDate} ถึง {item.endDate}</td>
                               <td style={{ fontWeight: 'bold' }}>{item.days} วัน</td>
-                              <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.reason || '-'}</td>
+                              <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                <div>{item.reason || '-'}</div>
+                                {item.attachmentUrl && (
+                                  <div style={{ marginTop: '0.25rem' }}>
+                                    <button 
+                                      className="btn btn-secondary" 
+                                      style={{ padding: '0.15rem 0.45rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                      onClick={() => setSelectedDoc({
+                                        id: item.id,
+                                        title: `ใบลา${item.leaveType} (${item.employeeName})`,
+                                        attachmentUrl: item.attachmentUrl,
+                                        imageUrl: item.attachmentType === 'image' ? item.attachmentUrl : '',
+                                        attachmentName: item.attachmentName || 'ไฟล์เอกสารประกอบการลา',
+                                        attachmentType: item.attachmentType || 'document',
+                                        attachmentExt: item.attachmentExt || 'DOC',
+                                        date: item.startDate,
+                                        sender: item.employeeName,
+                                        details: item.reason || `ใบขอลา ${item.leaveType}`
+                                      })}
+                                    >
+                                      <Paperclip size={13} /> {item.attachmentName || 'ดูเอกสารแนบ'}
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
                               <td>
                                 {item.status === 'approved' && <span className="status-badge active">✓ อนุมัติแล้ว</span>}
                                 {item.status === 'pending' && <span className="status-badge pending">⏳ รออนุมัติ</span>}
@@ -6495,6 +6606,95 @@ export default function App() {
                   />
                 </div>
 
+                {/* File Attachment (Image & Documents like PDF/DOCX) */}
+                <div className="form-group mb-3">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Paperclip size={15} /> แนบไฟล์ภาพสลิป หรือ เอกสารประกอบ (สลิป/ใบเสร็จ/PDF/DOC)
+                  </label>
+                  
+                  {!txForm.attachmentUrl ? (
+                    <label 
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        border: '2px dashed var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-card-hover)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        textAlign: 'center',
+                        gap: '0.4rem'
+                      }}
+                    >
+                      <Upload size={20} style={{ color: 'var(--primary)' }} />
+                      <span style={{ fontSize: '0.82rem', fontWeight: '600' }}>คลิกเพื่อแนบไฟล์ภาพ หรือ เอกสาร</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>รองรับไฟล์รูปภาพ (JPG, PNG) และเอกสาร (PDF, DOCX, XLS)</span>
+                      <input 
+                        type="file" 
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileUpload(e, setTxForm)}
+                      />
+                    </label>
+                  ) : (
+                    <div style={{
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+                        {txForm.attachmentType === 'image' ? (
+                          <img 
+                            src={txForm.attachmentUrl} 
+                            alt="attachment preview" 
+                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-color)' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                            color: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            fontSize: '0.75rem'
+                          }}>
+                            {txForm.attachmentExt || 'DOC'}
+                          </div>
+                        )}
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: '600', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {txForm.attachmentName || 'ไฟล์แนบประกอบธุรกรรม'}
+                          </div>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            {txForm.attachmentType === 'image' ? '🖼️ ไฟล์รูปภาพ' : '📄 ไฟล์เอกสาร'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button 
+                        type="button"
+                        className="btn btn-danger" 
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                        onClick={() => setTxForm(prev => ({ ...prev, attachmentUrl: '', attachmentName: '', attachmentType: '', attachmentExt: '' }))}
+                      >
+                        ✕ ลบไฟล์แนบ
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                   <button type="submit" className="btn btn-primary" style={{ flexGrow: 1, justifyContent: 'center' }}>
                     {editingTransaction ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
@@ -6592,12 +6792,12 @@ export default function App() {
         </div>
       )}
 
-      {/* ================= SLIP IMAGE PREVIEW MODAL (DOCUMENT HUB) ================= */}
+      {/* ================= SLIP IMAGE & DOCUMENT PREVIEW MODAL ================= */}
       {selectedDoc && (
         <div className="modal-overlay" onClick={() => setSelectedDoc(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>ภาพสลิปที่แนบ/สแกน (OCR View)</h2>
+              <h2>📄 รายละเอียดไฟล์เอกสาร / สลิป (Document Viewer)</h2>
               <button className="modal-close-btn" onClick={() => setSelectedDoc(null)}>✕</button>
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
@@ -6614,6 +6814,47 @@ export default function App() {
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                     <strong>หมวดหมู่:</strong> {selectedDoc.category || 'ทั่วไป'} | <strong>ยอดเงิน:</strong> ฿{selectedDoc.amount?.toLocaleString()} | <strong>Ref:</strong> {selectedDoc.ref}
                   </div>
+                </div>
+              ) : selectedDoc.attachmentUrl ? (
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{
+                    width: '100%',
+                    padding: '1.5rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-card-hover)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.75rem'
+                  }}>
+                    <FileText size={48} style={{ color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, textAlign: 'center' }}>{selectedDoc.attachmentName || selectedDoc.title}</h3>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      ประเภทเอกสาร: {selectedDoc.attachmentExt || 'DOCUMENT'} ({selectedDoc.date})
+                    </span>
+
+                    {/* Download / Open File Button */}
+                    <a 
+                      href={selectedDoc.attachmentUrl} 
+                      download={selectedDoc.attachmentName || 'document'} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="btn btn-primary"
+                      style={{ marginTop: '0.5rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      <Download size={16} /> ดาวน์โหลด / เปิดไฟล์เอกสารแนบ
+                    </a>
+                  </div>
+
+                  {/* Embedded PDF Viewer if PDF data URL */}
+                  {selectedDoc.attachmentUrl.includes('data:application/pdf') && (
+                    <iframe 
+                      src={selectedDoc.attachmentUrl} 
+                      title="PDF Preview"
+                      style={{ width: '100%', height: '360px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                    />
+                  )}
                 </div>
               ) : (
                 <div style={{ 
@@ -6652,13 +6893,6 @@ export default function App() {
               <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-primary" onClick={() => handlePrintDocInvoice(selectedDoc)} style={{ flexGrow: 1, justifyContent: 'center' }}>
                   <Printer size={16} /> พิมพ์รายงาน PDF
-                </button>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => { const docToEdit = selectedDoc; setSelectedDoc(null); openEditDocModal(docToEdit); }} 
-                  style={{ flexGrow: 1, justifyContent: 'center' }}
-                >
-                  <Edit size={16} /> แก้ไขหมวดหมู่ / ข้อมูล
                 </button>
                 <button className="btn btn-secondary" onClick={() => setSelectedDoc(null)} style={{ flexGrow: 1, justifyContent: 'center' }}>
                   ปิดหน้าต่าง
@@ -8059,6 +8293,95 @@ export default function App() {
                     value={leaveForm.reason}
                     onChange={(e) => setLeaveForm(prev => ({ ...prev, reason: e.target.value }))}
                   ></textarea>
+                </div>
+
+                {/* File Attachment for Leave Request */}
+                <div className="form-group mb-3">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Paperclip size={15} /> แนบไฟล์ภาพ / เอกสารประกอบการลา (ใบรับรองแพทย์ / เอกสารแนบ)
+                  </label>
+                  
+                  {!leaveForm.attachmentUrl ? (
+                    <label 
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        border: '2px dashed var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-card-hover)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        textAlign: 'center',
+                        gap: '0.4rem'
+                      }}
+                    >
+                      <Upload size={20} style={{ color: 'var(--primary)' }} />
+                      <span style={{ fontSize: '0.82rem', fontWeight: '600' }}>คลิกเพื่อแนบใบรับรองแพทย์ หรือ เอกสาร</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>รองรับไฟล์รูปภาพ (JPG, PNG) และเอกสาร (PDF, DOCX)</span>
+                      <input 
+                        type="file" 
+                        accept="image/*,.pdf,.doc,.docx"
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileUpload(e, setLeaveForm)}
+                      />
+                    </label>
+                  ) : (
+                    <div style={{
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+                        {leaveForm.attachmentType === 'image' ? (
+                          <img 
+                            src={leaveForm.attachmentUrl} 
+                            alt="leave attachment preview" 
+                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-color)' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                            color: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            fontSize: '0.75rem'
+                          }}>
+                            {leaveForm.attachmentExt || 'DOC'}
+                          </div>
+                        )}
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: '600', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {leaveForm.attachmentName || 'ไฟล์แนบประกอบการลา'}
+                          </div>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            {leaveForm.attachmentType === 'image' ? '🖼️ ใบรับรองแพทย์ / รูปภาพ' : '📄 เอกสารแนบ'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button 
+                        type="button"
+                        className="btn btn-danger" 
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                        onClick={() => setLeaveForm(prev => ({ ...prev, attachmentUrl: '', attachmentName: '', attachmentType: '', attachmentExt: '' }))}
+                      >
+                        ✕ ลบไฟล์แนบ
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
