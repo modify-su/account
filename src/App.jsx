@@ -677,7 +677,7 @@ export default function App() {
 
   useEffect(() => {
     if (isFirebaseConfigured()) {
-      const unsubscribe = subscribeToCloudCollection('line_permissions', (data) => {
+      const unsubscribe = subscribeToCollection('line_permissions', (data) => {
         if (data && data.length > 0) {
           setLinePermissions(data);
         }
