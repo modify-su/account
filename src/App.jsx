@@ -3020,7 +3020,8 @@ export default function App() {
 
   // --- DOCUMENT HUB SEARCH & VIEW ---
   const getFilteredDocs = () => {
-    return documents.filter(doc => {
+    return (documents || []).filter(doc => {
+      if (!doc) return false;
       if (docFilterType !== 'all') {
         if (docFilterType === 'income' && doc.type !== 'receipt') return false;
         if (docFilterType === 'expense' && doc.type !== 'tax_invoice') return false;
@@ -3028,10 +3029,10 @@ export default function App() {
       if (docSearchQuery) {
         const q = docSearchQuery.toLowerCase();
         return (
-          doc.title.toLowerCase().includes(q) ||
-          doc.merchant.toLowerCase().includes(q) ||
-          doc.ref.toLowerCase().includes(q) ||
-          doc.sender.toLowerCase().includes(q)
+          (doc.title && doc.title.toLowerCase().includes(q)) ||
+          (doc.merchant && doc.merchant.toLowerCase().includes(q)) ||
+          (doc.ref && doc.ref.toLowerCase().includes(q)) ||
+          (doc.sender && doc.sender.toLowerCase().includes(q))
         );
       }
       return true;
@@ -5882,11 +5883,13 @@ export default function App() {
 
                 {/* Employee Profiles Cards Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                  {salaries
+                  {(salaries || [])
                     .filter(emp => {
+                      if (!emp) return false;
+                      const q = (employeeSearchQuery || '').toLowerCase();
                       const matchQuery = !employeeSearchQuery || 
-                        emp.employeeName.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
-                        emp.employeeRole.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
+                        (emp.employeeName && emp.employeeName.toLowerCase().includes(q)) ||
+                        (emp.employeeRole && emp.employeeRole.toLowerCase().includes(q)) ||
                         (emp.phone && emp.phone.includes(employeeSearchQuery));
                       const matchDept = employeeDeptFilter === 'all' || emp.department === employeeDeptFilter;
                       return matchQuery && matchDept;
