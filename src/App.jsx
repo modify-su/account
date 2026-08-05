@@ -148,6 +148,61 @@ const DEFAULT_ATTENDANCE = [
   { id: 'att_3', date: '2026-07-25', employeeName: 'พนักงานทั่วไป', checkIn: '08:30', checkOut: '17:35', status: 'ontime', location: 'ออฟฟิศหลัก' }
 ];
 
+const DEFAULT_LINE_PERMISSIONS = [
+  {
+    id: 'lup_1',
+    employeeName: 'ผู้ดูแลระบบสูงสุด',
+    lineUserId: '@admin_flowledger',
+    role: 'admin',
+    isAllowed: true,
+    permissions: {
+      canSubmitLeave: true,
+      canUploadSlip: true,
+      canCheckLeaveBalance: true,
+      canViewFinancialSummary: true
+    }
+  },
+  {
+    id: 'lup_2',
+    employeeName: 'นายศักรินทร์ สุขใจ',
+    lineUserId: '@sakarin_p',
+    role: 'staff',
+    isAllowed: true,
+    permissions: {
+      canSubmitLeave: true,
+      canUploadSlip: true,
+      canCheckLeaveBalance: true,
+      canViewFinancialSummary: false
+    }
+  },
+  {
+    id: 'lup_3',
+    employeeName: 'นางสาวเอวาริณณ์ บัญชีหลักบริษัท',
+    lineUserId: '@awarin_m',
+    role: 'staff',
+    isAllowed: true,
+    permissions: {
+      canSubmitLeave: true,
+      canUploadSlip: true,
+      canCheckLeaveBalance: true,
+      canViewFinancialSummary: false
+    }
+  },
+  {
+    id: 'lup_4',
+    employeeName: 'พนักงานทั่วไป',
+    lineUserId: '@staff_flowledger',
+    role: 'staff',
+    isAllowed: false,
+    permissions: {
+      canSubmitLeave: false,
+      canUploadSlip: false,
+      canCheckLeaveBalance: false,
+      canViewFinancialSummary: false
+    }
+  }
+];
+
 const MOCK_SLIPS = [
   {
     id: 'slip-sakarin-ptt',
@@ -620,6 +675,143 @@ export default function App() {
 
     reader.readAsDataURL(file);
     e.target.value = null;
+  };
+
+  // LINE Bot Permission Management State
+  const [linePermissions, setLinePermissions] = useState(() => {
+    const saved = localStorage.getItem('flowledger_line_permissions_v1');
+    return saved ? JSON.parse(saved) : DEFAULT_LINE_PERMISSIONS;
+  });
+  const [lineSubTab, setLineSubTab] = useState('permissions'); // 'permissions' or 'simulator'
+  const [selectedLineUserId, setSelectedLineUserId] = useState('lup_1');
+  const [showAddLineUserModal, setShowAddLineUserModal] = useState(false);
+  const [lineUserSearch, setLineUserSearch] = useState('');
+  const [lineUserForm, setLineUserForm] = useState({
+    employeeName: '',
+    lineUserId: '',
+    role: 'staff',
+    isAllowed: true,
+    canSubmitLeave: true,
+    canUploadSlip: true,
+    canCheckLeaveBalance: true,
+    canViewFinancialSummary: false
+  });
+
+  useEffect(() => {
+    localStorage.setItem('flowledger_line_permissions_v1', JSON.stringify(linePermissions));
+  }, [linePermissions]);
+
+  useEffect(() => {
+    if (isFirebaseConfigured()) {
+      const unsubscribe = subscribeToCloudCollection('line_permissions', (data) => {
+        if (data && data.length > 0) {
+          setLinePermissions(data);
+        }
+      });
+      return () => unsubscribe && unsubscribe();
+    }
+  }, []);
+
+  // Toggle main LINE Bot access permission for user
+  const handleToggleLineUserAccess = (id) => {
+    if (currentUser.role !== 'admin') {
+      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถเปิด-ปิดสิทธิ์ใช้งาน LINE Bot ได้');
+      return;
+    }
+
+    setLinePermissions(prev => prev.map(user => {
+      if (user.id === id) {
+        const nextAllowed = !user.isAllowed;
+        const updated = {
+          ...user,
+          isAllowed: nextAllowed
+        };
+        if (isFirebaseConfigured()) {
+          saveDocToCloud('line_permissions', updated);
+        }
+        showToast(
+          nextAllowed ? 'success' : 'warning',
+          nextAllowed ? 'เปิดสิทธิ์การใช้งาน' : 'ปิดสิทธิ์การใช้งาน',
+          `${nextAllowed ? '🟢 เปิดสิทธิ์' : '🔴 ปิดสิทธิ์'} การใช้งาน LINE Bot ของคุณ ${user.employeeName} เรียบร้อยแล้ว`
+        );
+        return updated;
+      }
+      return user;
+    }));
+  };
+
+  // Toggle granular feature permission for user
+  const handleToggleLineFeaturePermission = (userId, featureKey) => {
+    if (currentUser.role !== 'admin') {
+      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย เฉพาะผู้ดูแลระบบเท่านั้นที่ตั้งค่าสิทธิ์ย่อยได้');
+      return;
+    }
+
+    setLinePermissions(prev => prev.map(user => {
+      if (user.id === userId) {
+        const currentVal = user.permissions?.[featureKey] ?? false;
+        const updated = {
+          ...user,
+          permissions: {
+            ...user.permissions,
+            [featureKey]: !currentVal
+          }
+        };
+        if (isFirebaseConfigured()) {
+          saveDocToCloud('line_permissions', updated);
+        }
+        showToast('info', 'ปรับสิทธิ์ฟังก์ชัน', `อัปเดตสิทธิ์ฟังก์ชันของ ${user.employeeName} เรียบร้อยแล้ว`);
+        return updated;
+      }
+      return user;
+    }));
+  };
+
+  // Save new LINE User permission mapping
+  const handleSaveLineUserPermission = (e) => {
+    e.preventDefault();
+    if (!lineUserForm.employeeName || !lineUserForm.lineUserId) {
+      showToast('warning', 'ข้อมูลไม่ครบถ้วน', 'กรุณาระบุชื่อพนักงานและ LINE ID');
+      return;
+    }
+
+    const newUser = {
+      id: `lup_${Date.now()}`,
+      employeeName: lineUserForm.employeeName,
+      lineUserId: lineUserForm.lineUserId.startsWith('@') ? lineUserForm.lineUserId : `@${lineUserForm.lineUserId}`,
+      role: lineUserForm.role,
+      isAllowed: lineUserForm.isAllowed,
+      permissions: {
+        canSubmitLeave: lineUserForm.canSubmitLeave,
+        canUploadSlip: lineUserForm.canUploadSlip,
+        canCheckLeaveBalance: lineUserForm.canCheckLeaveBalance,
+        canViewFinancialSummary: lineUserForm.canViewFinancialSummary
+      }
+    };
+
+    if (isFirebaseConfigured()) {
+      saveDocToCloud('line_permissions', newUser);
+    } else {
+      setLinePermissions(prev => [newUser, ...prev]);
+    }
+
+    showToast('success', 'บันทึกสำเร็จ', `เพิ่มสิทธิ์ผูก LINE Bot ให้กับ ${newUser.employeeName} เรียบร้อยแล้ว`);
+    setShowAddLineUserModal(false);
+  };
+
+  const handleDeleteLineUserPermission = (id) => {
+    if (currentUser.role !== 'admin') {
+      showToast('error', 'ไม่มีสิทธิ์', 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบสิทธิ์ผู้ใช้ได้');
+      return;
+    }
+    if (confirm('คุณต้องการลบสิทธิ์และยกเลิกผูก LINE User นี้ใช่หรือไม่?')) {
+      if (isFirebaseConfigured()) {
+        deleteDocFromCloud('line_permissions', id);
+      } else {
+        setLinePermissions(prev => prev.filter(u => u.id !== id));
+      }
+      showToast('warning', 'ลบสิทธิ์เรียบร้อย', 'ยกเลิกสิทธิ์ผูก LINE User เรียบร้อยแล้ว');
+    }
   };
 
   // Filtering general ledger state
@@ -2580,6 +2772,8 @@ export default function App() {
   };
 
   // --- LINE BOT INTERACTIVE SIMULATOR ---
+  const activeLineUser = linePermissions.find(u => u.id === selectedLineUserId) || linePermissions[0];
+
   const handleLineSendMessage = (text) => {
     const content = text || chatInput;
     if (!content.trim()) return;
@@ -2605,15 +2799,44 @@ export default function App() {
       let botResponse = '';
       const cleanCmd = content.trim().toLowerCase();
 
-      if (cleanCmd === '/summary') {
-        const incomeSum = transactions.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
-        const expenseSum = transactions.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
-        botResponse = `📊 *สรุปสถานะการเงินปัจจุบัน*\n\n💸 รายรับรวม: ฿${incomeSum.toLocaleString('th-TH')}\n📉 รายจ่ายรวม: ฿${expenseSum.toLocaleString('th-TH')}\n💼 คงเหลือสุทธิ: ฿${(incomeSum - expenseSum).toLocaleString('th-TH')}\n\nบันทึกข้อมูลเรียลไทม์ผ่านบอทแล้ว`;
+      // Enforce Main LINE Access Permission Toggle
+      if (activeLineUser && !activeLineUser.isAllowed) {
+        botResponse = `🔴 *แจ้งเตือนปฏิเสธสิทธิ์การเข้าถึง (Access Denied)*\n\nขออภัย บัญชี LINE ของคุณ (${activeLineUser.employeeName}) ถูกปิดใช้งานสิทธิ์โดยผู้ดูแลระบบ (Administrator)\nกรุณาติดต่อ Admin เพื่อขอเปิดสิทธิ์ใช้งาน LINE Bot`;
+      } else if (cleanCmd === '/summary') {
+        if (activeLineUser && !activeLineUser.permissions?.canViewFinancialSummary) {
+          botResponse = `🔒 *สิทธิ์การเข้าถึงข้อมูลถูกจำกัด*\n\nขออภัย บัญชีของคุณ (${activeLineUser.employeeName}) ไม่มีสิทธิ์เข้าถึงสรุปรายงานการเงินของออฟฟิศ (สำหรับ Admin เท่านั้น)`;
+        } else {
+          const incomeSum = transactions.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+          const expenseSum = transactions.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+          botResponse = `📊 *สรุปสถานะการเงินปัจจุบัน*\n\n💸 รายรับรวม: ฿${incomeSum.toLocaleString('th-TH')}\n📉 รายจ่ายรวม: ฿${expenseSum.toLocaleString('th-TH')}\n💼 คงเหลือสุทธิ: ฿${(incomeSum - expenseSum).toLocaleString('th-TH')}\n\nบันทึกข้อมูลเรียลไทม์ผ่านบอทแล้ว`;
+        }
+      } else if (cleanCmd.includes('ลาป่วย') || cleanCmd.includes('ขอลา') || cleanCmd.includes('ใบลา')) {
+        if (activeLineUser && !activeLineUser.permissions?.canSubmitLeave) {
+          botResponse = `🚫 *สิทธิ์การยื่นใบลาถูกปิดใช้งาน*\n\nสิทธิ์การยื่นใบลาผ่าน LINE Bot ของคุณถูกปิดโดย Admin`;
+        } else {
+          const newLeave = {
+            id: `lv_${Date.now()}`,
+            employeeName: activeLineUser?.employeeName || 'พนักงานส่งคำขอทาง LINE',
+            leaveType: 'ลาป่วย',
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: new Date().toISOString().split('T')[0],
+            days: 1,
+            reason: content,
+            status: 'pending',
+            requestedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+          };
+          if (isFirebaseConfigured()) {
+            saveDocToCloud('leaves', newLeave);
+          } else {
+            setLeaves(prev => [newLeave, ...prev]);
+          }
+          botResponse = `📝 *ยื่นใบลาป่วยผ่าน LINE สำเร็จ*\n\nผู้ยื่น: ${activeLineUser?.employeeName || 'พนักงาน'}\nวันที่: ${newLeave.startDate}\nสถานะ: ⏳ รอผู้ดูแลระบบ (Admin) อนุมัติ`;
+        }
       } else if (cleanCmd === '/list') {
         const docList = documents.map(d => `📄 ${d.title} (฿${d.amount.toLocaleString()})`).slice(0, 5).join('\n');
         botResponse = `📂 *ประวัติเอกสารล่าสุด 5 รายการ*\n\n${docList || 'ไม่มีข้อมูลคลังเอกสาร'}\n\nเรียกดูเอกสารทั้งหมดในแท็บ "คลังเอกสารจัดเก็บ"`;
       } else {
-        botResponse = `🤖 ขออภัยครับ ผมไม่เข้าใจข้อความนี้\n\nสามารถใช้คำสั่งต่อไปนี้เพื่อสื่อสาร:\n⚡ พิมพ์ "/summary" เพื่อดูรายงานเงินออฟฟิศ\n⚡ พิมพ์ "/list" เพื่อดูบิลที่สแกนล่าสุด\n⚡ หรือ "แนบรูปภาพสลิป/บิล" เพื่อสร้างเอกสารอัตโนมัติ`;
+        botResponse = `🤖 สวัสดีครับคุณ ${activeLineUser?.employeeName || 'พนักงาน'}\n\nคำสั่งที่รองรับ:\n⚡ พิมพ์ "ลาป่วย มีไข้สูง" เพื่อยื่นใบลาอัตโนมัติ\n⚡ แนบภาพสลิป/บิล เพื่อสแกนลงบันทึกบัญชี\n⚡ พิมพ์ "/summary" เพื่อดูรายงานสรุปการเงิน`;
       }
 
       const botMsg = {
@@ -4638,10 +4861,235 @@ export default function App() {
           <div>
             <header className="page-header">
               <div className="page-title-group">
-                <h1>ระบบจำลอง LINE Bot สร้างเอกสารทางบัญชี</h1>
-                <p>โต้ตอบกับ LINE Bot เพื่อนำข้อมูลสลิปโอนเงิน หรือใบเสร็จไปสร้างเป็นข้อมูลการเงินและไฟล์รายงานโดยอัตโนมัติ</p>
+                <h1>ระบบจัดการและจำลอง LINE Bot ประจำออฟฟิศ</h1>
+                <p>กำหนดสิทธิ์การใช้งาน LINE Bot สำหรับพนักงานทุกคน และทดสอบการส่งสลิป/ยื่นใบลาป่วยทาง LINE</p>
               </div>
             </header>
+
+            {/* Sub-tabs Navigation */}
+            <div className="sub-tabs-container mb-4" style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
+              <button 
+                className={`btn ${lineSubTab === 'permissions' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setLineSubTab('permissions')}
+              >
+                🔐 1. กำหนดสิทธิ์เปิด-ปิด LINE Bot พนักงาน
+              </button>
+              <button 
+                className={`btn ${lineSubTab === 'simulator' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setLineSubTab('simulator')}
+              >
+                🤖 2. จำลองแชทโต้ตอบ & สแกนสลิป LINE
+              </button>
+            </div>
+
+            {/* ================= 1. LINE BOT USER PERMISSIONS VIEW ================= */}
+            {lineSubTab === 'permissions' && (
+              <div>
+                {/* Metrics Grid */}
+                <div className="summary-grid mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                  <div className="glass-card summary-card balance">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ผูกสิทธิ์ LINE ทั้งหมด</span>
+                      <div className="summary-card-icon"><Users size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-primary">
+                      {linePermissions.length} บัญชี
+                    </div>
+                    <div className="summary-card-change up">
+                      พนักงานที่ลงทะเบียนสิทธิ์ในระบบ
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card income">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">เปิดใช้งานสิทธิ์ (Allowed)</span>
+                      <div className="summary-card-icon"><CheckCircle2 size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-success">
+                      {linePermissions.filter(u => u.isAllowed).length} บัญชี
+                    </div>
+                    <div className="summary-card-change up">
+                      🟢 สิทธิ์การใช้งานปกติ
+                    </div>
+                  </div>
+
+                  <div className="glass-card summary-card expense">
+                    <div className="summary-card-header">
+                      <span className="summary-card-title">ปิดการใช้งาน (Disabled)</span>
+                      <div className="summary-card-icon"><XCircle size={18} /></div>
+                    </div>
+                    <div className="summary-card-value text-danger">
+                      {linePermissions.filter(u => !u.isAllowed).length} บัญชี
+                    </div>
+                    <div className="summary-card-change down">
+                      🔴 ถูกปิดสิทธิ์โดย Admin
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter and Action Bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="🔍 ค้นหาตามชื่อพนักงาน หรือ LINE ID..."
+                      value={lineUserSearch}
+                      onChange={(e) => setLineUserSearch(e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                  {currentUser.role === 'admin' && (
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setLineUserForm({
+                          employeeName: salaries.length > 0 ? salaries[0].employeeName : '',
+                          lineUserId: '',
+                          role: 'staff',
+                          isAllowed: true,
+                          canSubmitLeave: true,
+                          canUploadSlip: true,
+                          canCheckLeaveBalance: true,
+                          canViewFinancialSummary: false
+                        });
+                        setShowAddLineUserModal(true);
+                      }}
+                    >
+                      <Plus size={16} /> ผูกสิทธิ์ LINE พนักงานใหม่
+                    </button>
+                  )}
+                </div>
+
+                {/* Permissions Table */}
+                <div className="glass-card p-0" style={{ overflow: 'hidden' }}>
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>ชื่อพนักงาน / สมาชิก</th>
+                          <th>LINE User ID</th>
+                          <th>บทบาท</th>
+                          <th style={{ textAlign: 'center' }}>สิทธิ์ใช้งานหลัก LINE Bot</th>
+                          <th>สิทธิ์ฟังก์ชันย่อย (Granular Permissions)</th>
+                          {currentUser.role === 'admin' && <th style={{ textAlign: 'center' }}>จัดการ</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linePermissions
+                          .filter(u => !lineUserSearch || 
+                            u.employeeName.toLowerCase().includes(lineUserSearch.toLowerCase()) ||
+                            u.lineUserId.toLowerCase().includes(lineUserSearch.toLowerCase())
+                          )
+                          .map(user => (
+                            <tr key={user.id} style={{ opacity: user.isAllowed ? 1 : 0.65, backgroundColor: user.isAllowed ? 'transparent' : 'rgba(239,68,68,0.03)' }}>
+                              <td>
+                                <div style={{ fontWeight: '600' }}>{user.employeeName}</div>
+                              </td>
+                              <td>
+                                <code style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{user.lineUserId}</code>
+                              </td>
+                              <td>
+                                <span className={`badge badge-${user.role === 'admin' ? 'income' : 'expense'}`} style={{ fontSize: '0.72rem' }}>
+                                  {user.role === 'admin' ? '👑 ผู้ดูแลระบบ' : '👤 พนักงาน'}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button 
+                                  className={`btn ${user.isAllowed ? 'btn-success' : 'btn-danger'}`}
+                                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem', borderRadius: '20px' }}
+                                  onClick={() => handleToggleLineUserAccess(user.id)}
+                                  title="คลิกเพื่อสลับเปิด-ปิดสิทธิ์ใช้งาน LINE Bot ของพนักงานท่านนี้"
+                                >
+                                  {user.isAllowed ? '🟢 อนุญาตใช้งาน' : '🔴 ปิดสิทธิ์ใช้งาน'}
+                                </button>
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.78rem' }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={user.permissions?.canSubmitLeave ?? true}
+                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canSubmitLeave')}
+                                      disabled={!user.isAllowed}
+                                    />
+                                    <span>📝 ยื่นใบลาป่วยทาง LINE</span>
+                                  </label>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={user.permissions?.canUploadSlip ?? true}
+                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canUploadSlip')}
+                                      disabled={!user.isAllowed}
+                                    />
+                                    <span>🧾 ส่งสลิปโอนเงิน/บิลสำรองจ่าย</span>
+                                  </label>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={user.permissions?.canCheckLeaveBalance ?? true}
+                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canCheckLeaveBalance')}
+                                      disabled={!user.isAllowed}
+                                    />
+                                    <span>⏱️ เช็กวันลาคงเหลือ/ลงเวลา</span>
+                                  </label>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', color: user.permissions?.canViewFinancialSummary ? 'var(--primary)' : 'inherit' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={user.permissions?.canViewFinancialSummary ?? false}
+                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canViewFinancialSummary')}
+                                      disabled={!user.isAllowed}
+                                    />
+                                    <span>📊 ดูสรุปบัญชีรายรับ-รายจ่ายบริษัท</span>
+                                  </label>
+                                </div>
+                              </td>
+                              {currentUser.role === 'admin' && (
+                                <td style={{ textAlign: 'center' }}>
+                                  <button 
+                                    className="btn btn-danger" 
+                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
+                                    onClick={() => handleDeleteLineUserPermission(user.id)}
+                                    title="ลบสิทธิ์"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= 2. LINE BOT SIMULATOR VIEW ================= */}
+            {lineSubTab === 'simulator' && (
+              <div>
+                {/* User Selector Bar for Simulator */}
+                <div className="glass-card mb-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 'bold' }}>👤 ทดสอบสนทนาในฐานะพนักงาน:</span>
+                    <select 
+                      className="form-select"
+                      value={selectedLineUserId}
+                      onChange={(e) => setSelectedLineUserId(e.target.value)}
+                      style={{ width: '260px' }}
+                    >
+                      {linePermissions.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.employeeName} ({u.lineUserId}) - {u.isAllowed ? '🟢 เปิดสิทธิ์' : '🔴 ปิดสิทธิ์'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    สถานะบัญชีปัจจุบัน: {activeLineUser?.isAllowed ? <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>🟢 เปิดสิทธิ์ใช้งานปกติ</span> : <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>🔴 บัญชีนี้ถูกปิดสิทธิ์โดย Admin</span>}
+                  </div>
+                </div>
 
             <div className="line-bot-layout">
               {/* Phone Mockup Screen */}
@@ -4833,6 +5281,8 @@ export default function App() {
             </div>
           </div>
         )}
+      </div>
+    )}
 
         {/* ================= DOCUMENT HUB ARCHIVE TAB ================= */}
         {activeTab === 'dochub' && (
@@ -8491,6 +8941,116 @@ export default function App() {
               <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAttendanceModal(false)}>ยกเลิก</button>
                 <button type="submit" className="btn btn-primary">บันทึกการลงเวลา</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= ADD LINE USER PERMISSION MODAL ================= */}
+      {showAddLineUserModal && (
+        <div className="modal-overlay" onClick={() => setShowAddLineUserModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🔐 เพิ่มผูกสิทธิ์ LINE Bot พนักงานใหม่</h2>
+              <button className="modal-close-btn" onClick={() => setShowAddLineUserModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveLineUserPermission}>
+              <div className="modal-body">
+                <div className="form-group mb-3">
+                  <label className="form-label">เลือกพนักงานจากระบบ</label>
+                  <select 
+                    className="form-select"
+                    value={lineUserForm.employeeName}
+                    onChange={(e) => setLineUserForm(prev => ({ ...prev, employeeName: e.target.value }))}
+                    required
+                  >
+                    <option value="">-- เลือกพนักงาน --</option>
+                    {salaries.map(s => (
+                      <option key={s.id} value={s.employeeName}>{s.employeeName} ({s.department || s.employeeRole})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-row mb-3">
+                  <div className="form-group">
+                    <label className="form-label">LINE User ID / Handle</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="เช่น @sakarin_p" 
+                      required
+                      value={lineUserForm.lineUserId}
+                      onChange={(e) => setLineUserForm(prev => ({ ...prev, lineUserId: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">ระดับบทบาท (Role)</label>
+                    <select 
+                      className="form-select"
+                      value={lineUserForm.role}
+                      onChange={(e) => setLineUserForm(prev => ({ ...prev, role: e.target.value }))}
+                    >
+                      <option value="staff">👤 พนักงานทั่วไป (Staff)</option>
+                      <option value="admin">👑 ผู้ดูแลระบบ (Admin)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group mb-3" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                  <label className="form-label mb-2" style={{ fontWeight: 'bold' }}>สถานะการอนุญาตใช้งานหลัก</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                    <input 
+                      type="checkbox"
+                      checked={lineUserForm.isAllowed}
+                      onChange={(e) => setLineUserForm(prev => ({ ...prev, isAllowed: e.target.checked }))}
+                    />
+                    <span>🟢 เปิดสิทธิ์การใช้งาน LINE Bot ให้กับพนักงานท่านนี้</span>
+                  </label>
+                </div>
+
+                <div className="form-group" style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem' }}>
+                  <label className="form-label mb-2" style={{ fontWeight: 'bold' }}>กำหนดสิทธิ์ฟังก์ชันย่อย</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={lineUserForm.canSubmitLeave}
+                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canSubmitLeave: e.target.checked }))}
+                      />
+                      <span>📝 ยื่นใบลาป่วยทาง LINE Bot</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={lineUserForm.canUploadSlip}
+                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canUploadSlip: e.target.checked }))}
+                      />
+                      <span>🧾 ส่งภาพสลิป/บิลสำรองจ่าย</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={lineUserForm.canCheckLeaveBalance}
+                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canCheckLeaveBalance: e.target.checked }))}
+                      />
+                      <span>⏱️ เช็กวันลาคงเหลือ/ประวัติลงเวลา</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={lineUserForm.canViewFinancialSummary}
+                        onChange={(e) => setLineUserForm(prev => ({ ...prev, canViewFinancialSummary: e.target.checked }))}
+                      />
+                      <span>📊 ดูรายงานสรุปเงินออฟฟิศ (เฉพาะ Admin)</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddLineUserModal(false)}>ยกเลิก</button>
+                <button type="submit" className="btn btn-primary">บันทึกสิทธิ์ผูก LINE</button>
               </div>
             </form>
           </div>
