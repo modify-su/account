@@ -679,8 +679,16 @@ export default function App() {
 
   // LINE Bot Permission Management State
   const [linePermissions, setLinePermissions] = useState(() => {
-    const saved = localStorage.getItem('flowledger_line_permissions_v1');
-    return saved ? JSON.parse(saved) : DEFAULT_LINE_PERMISSIONS;
+    try {
+      const saved = localStorage.getItem('flowledger_line_permissions_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error('Error reading line permissions:', e);
+    }
+    return DEFAULT_LINE_PERMISSIONS;
   });
   const [lineSubTab, setLineSubTab] = useState('permissions'); // 'permissions' or 'simulator'
   const [selectedLineUserId, setSelectedLineUserId] = useState('lup_1');
@@ -2762,7 +2770,9 @@ export default function App() {
   };
 
   // --- LINE BOT INTERACTIVE SIMULATOR ---
-  const activeLineUser = linePermissions.find(u => u.id === selectedLineUserId) || linePermissions[0];
+  const activeLineUser = (Array.isArray(linePermissions) && linePermissions.find(u => u && u.id === selectedLineUserId)) || 
+                         (Array.isArray(linePermissions) && linePermissions[0]) || 
+                         { id: 'default', employeeName: 'ผู้ใช้งาน', lineUserId: '@user', isAllowed: true, permissions: {} };
 
   const handleLineSendMessage = (text) => {
     const content = text || chatInput;
@@ -4883,7 +4893,7 @@ export default function App() {
                       <div className="summary-card-icon"><Users size={18} /></div>
                     </div>
                     <div className="summary-card-value text-primary">
-                      {linePermissions.length} บัญชี
+                      {(linePermissions || []).length} บัญชี
                     </div>
                     <div className="summary-card-change up">
                       พนักงานที่ลงทะเบียนสิทธิ์ในระบบ
@@ -4896,7 +4906,7 @@ export default function App() {
                       <div className="summary-card-icon"><CheckCircle2 size={18} /></div>
                     </div>
                     <div className="summary-card-value text-success">
-                      {linePermissions.filter(u => u.isAllowed).length} บัญชี
+                      {(linePermissions || []).filter(u => u && u.isAllowed).length} บัญชี
                     </div>
                     <div className="summary-card-change up">
                       🟢 สิทธิ์การใช้งานปกติ
@@ -4909,7 +4919,7 @@ export default function App() {
                       <div className="summary-card-icon"><XCircle size={18} /></div>
                     </div>
                     <div className="summary-card-value text-danger">
-                      {linePermissions.filter(u => !u.isAllowed).length} บัญชี
+                      {(linePermissions || []).filter(u => u && !u.isAllowed).length} บัญชี
                     </div>
                     <div className="summary-card-change down">
                       🔴 ถูกปิดสิทธิ์โดย Admin
@@ -4933,7 +4943,7 @@ export default function App() {
                     className="btn btn-primary"
                     onClick={() => {
                       setLineUserForm({
-                        employeeName: salaries.length > 0 ? salaries[0].employeeName : '',
+                        employeeName: (salaries && salaries.length > 0) ? salaries[0].employeeName : '',
                         lineUserId: '',
                         role: 'staff',
                         isAllowed: true,
@@ -4964,18 +4974,18 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {linePermissions
-                          .filter(u => !lineUserSearch || 
-                            u.employeeName.toLowerCase().includes(lineUserSearch.toLowerCase()) ||
-                            u.lineUserId.toLowerCase().includes(lineUserSearch.toLowerCase())
-                          )
+                        {(linePermissions || [])
+                          .filter(u => u && (!lineUserSearch || 
+                            (u.employeeName && u.employeeName.toLowerCase().includes(lineUserSearch.toLowerCase())) ||
+                            (u.lineUserId && u.lineUserId.toLowerCase().includes(lineUserSearch.toLowerCase()))
+                          ))
                           .map(user => (
                             <tr key={user.id} style={{ opacity: user.isAllowed ? 1 : 0.65, backgroundColor: user.isAllowed ? 'transparent' : 'rgba(239,68,68,0.03)' }}>
                               <td>
-                                <div style={{ fontWeight: '600' }}>{user.employeeName}</div>
+                                <div style={{ fontWeight: '600' }}>{user.employeeName || 'พนักงาน'}</div>
                               </td>
                               <td>
-                                <code style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{user.lineUserId}</code>
+                                <code style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{user.lineUserId || '@user'}</code>
                               </td>
                               <td>
                                 <span className={`badge badge-${user.role === 'admin' ? 'income' : 'expense'}`} style={{ fontSize: '0.72rem' }}>
@@ -5061,11 +5071,11 @@ export default function App() {
                       onChange={(e) => setSelectedLineUserId(e.target.value)}
                       style={{ width: '260px' }}
                     >
-                      {linePermissions.map(u => (
+                      {(linePermissions || []).map(u => u ? (
                         <option key={u.id} value={u.id}>
-                          {u.employeeName} ({u.lineUserId}) - {u.isAllowed ? '🟢 เปิดสิทธิ์' : '🔴 ปิดสิทธิ์'}
+                          {u.employeeName || 'พนักงาน'} ({u.lineUserId || '@user'}) - {u.isAllowed ? '🟢 เปิดสิทธิ์' : '🔴 ปิดสิทธิ์'}
                         </option>
-                      ))}
+                      ) : null)}
                     </select>
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
