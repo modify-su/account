@@ -4971,7 +4971,7 @@ export default function App() {
                           <th>LINE User ID</th>
                           <th>บทบาท</th>
                           <th style={{ textAlign: 'center' }}>สิทธิ์ใช้งานหลัก LINE Bot</th>
-                          <th>สิทธิ์ฟังก์ชันย่อย (Granular Permissions)</th>
+
                           <th style={{ textAlign: 'center' }}>จัดการ</th>
                         </tr>
                       </thead>
@@ -5004,42 +5004,7 @@ export default function App() {
                                   {user.isAllowed ? '🟢 อนุญาตใช้งาน' : '🔴 ปิดสิทธิ์ใช้งาน'}
                                 </button>
                               </td>
-                              <td>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.78rem' }}>
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={user.permissions?.canSubmitLeave ?? true}
-                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canSubmitLeave')}
-                                    />
-                                    <span>📝 ยื่นใบลาป่วยทาง LINE</span>
-                                  </label>
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={user.permissions?.canUploadSlip ?? true}
-                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canUploadSlip')}
-                                    />
-                                    <span>🧾 ส่งสลิปโอนเงิน/บิลสำรองจ่าย</span>
-                                  </label>
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={user.permissions?.canCheckLeaveBalance ?? true}
-                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canCheckLeaveBalance')}
-                                    />
-                                    <span>⏱️ เช็กวันลาคงเหลือ/ลงเวลา</span>
-                                  </label>
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', color: user.permissions?.canViewFinancialSummary ? 'var(--primary)' : 'inherit' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={user.permissions?.canViewFinancialSummary ?? false}
-                                      onChange={() => handleToggleLineFeaturePermission(user.id, 'canViewFinancialSummary')}
-                                    />
-                                    <span>📊 ดูสรุปบัญชีรายรับ-รายจ่ายบริษัท</span>
-                                  </label>
-                                </div>
-                              </td>
+
                               <td style={{ textAlign: 'center' }}>
                                 <button 
                                   className="btn btn-danger" 
