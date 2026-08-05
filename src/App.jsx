@@ -714,11 +714,6 @@ export default function App() {
 
   // Toggle main LINE Bot access permission for user
   const handleToggleLineUserAccess = (id) => {
-    if (currentUser.role !== 'admin') {
-      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถเปิด-ปิดสิทธิ์ใช้งาน LINE Bot ได้');
-      return;
-    }
-
     setLinePermissions(prev => prev.map(user => {
       if (user.id === id) {
         const nextAllowed = !user.isAllowed;
@@ -742,11 +737,6 @@ export default function App() {
 
   // Toggle granular feature permission for user
   const handleToggleLineFeaturePermission = (userId, featureKey) => {
-    if (currentUser.role !== 'admin') {
-      showToast('error', 'ไม่มีสิทธิ์', 'ขออภัย เฉพาะผู้ดูแลระบบเท่านั้นที่ตั้งค่าสิทธิ์ย่อยได้');
-      return;
-    }
-
     setLinePermissions(prev => prev.map(user => {
       if (user.id === userId) {
         const currentVal = user.permissions?.[featureKey] ?? false;
@@ -4939,26 +4929,24 @@ export default function App() {
                       style={{ flex: 1 }}
                     />
                   </div>
-                  {currentUser.role === 'admin' && (
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => {
-                        setLineUserForm({
-                          employeeName: salaries.length > 0 ? salaries[0].employeeName : '',
-                          lineUserId: '',
-                          role: 'staff',
-                          isAllowed: true,
-                          canSubmitLeave: true,
-                          canUploadSlip: true,
-                          canCheckLeaveBalance: true,
-                          canViewFinancialSummary: false
-                        });
-                        setShowAddLineUserModal(true);
-                      }}
-                    >
-                      <Plus size={16} /> ผูกสิทธิ์ LINE พนักงานใหม่
-                    </button>
-                  )}
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setLineUserForm({
+                        employeeName: salaries.length > 0 ? salaries[0].employeeName : '',
+                        lineUserId: '',
+                        role: 'staff',
+                        isAllowed: true,
+                        canSubmitLeave: true,
+                        canUploadSlip: true,
+                        canCheckLeaveBalance: true,
+                        canViewFinancialSummary: false
+                      });
+                      setShowAddLineUserModal(true);
+                    }}
+                  >
+                    <Plus size={16} /> ผูกสิทธิ์ LINE พนักงานใหม่
+                  </button>
                 </div>
 
                 {/* Permissions Table */}
@@ -4972,7 +4960,7 @@ export default function App() {
                           <th>บทบาท</th>
                           <th style={{ textAlign: 'center' }}>สิทธิ์ใช้งานหลัก LINE Bot</th>
                           <th>สิทธิ์ฟังก์ชันย่อย (Granular Permissions)</th>
-                          {currentUser.role === 'admin' && <th style={{ textAlign: 'center' }}>จัดการ</th>}
+                          <th style={{ textAlign: 'center' }}>จัดการ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4997,7 +4985,7 @@ export default function App() {
                               <td style={{ textAlign: 'center' }}>
                                 <button 
                                   className={`btn ${user.isAllowed ? 'btn-success' : 'btn-danger'}`}
-                                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem', borderRadius: '20px' }}
+                                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem', borderRadius: '20px', cursor: 'pointer' }}
                                   onClick={() => handleToggleLineUserAccess(user.id)}
                                   title="คลิกเพื่อสลับเปิด-ปิดสิทธิ์ใช้งาน LINE Bot ของพนักงานท่านนี้"
                                 >
@@ -5011,7 +4999,6 @@ export default function App() {
                                       type="checkbox" 
                                       checked={user.permissions?.canSubmitLeave ?? true}
                                       onChange={() => handleToggleLineFeaturePermission(user.id, 'canSubmitLeave')}
-                                      disabled={!user.isAllowed}
                                     />
                                     <span>📝 ยื่นใบลาป่วยทาง LINE</span>
                                   </label>
@@ -5020,7 +5007,6 @@ export default function App() {
                                       type="checkbox" 
                                       checked={user.permissions?.canUploadSlip ?? true}
                                       onChange={() => handleToggleLineFeaturePermission(user.id, 'canUploadSlip')}
-                                      disabled={!user.isAllowed}
                                     />
                                     <span>🧾 ส่งสลิปโอนเงิน/บิลสำรองจ่าย</span>
                                   </label>
@@ -5029,7 +5015,6 @@ export default function App() {
                                       type="checkbox" 
                                       checked={user.permissions?.canCheckLeaveBalance ?? true}
                                       onChange={() => handleToggleLineFeaturePermission(user.id, 'canCheckLeaveBalance')}
-                                      disabled={!user.isAllowed}
                                     />
                                     <span>⏱️ เช็กวันลาคงเหลือ/ลงเวลา</span>
                                   </label>
@@ -5038,24 +5023,21 @@ export default function App() {
                                       type="checkbox" 
                                       checked={user.permissions?.canViewFinancialSummary ?? false}
                                       onChange={() => handleToggleLineFeaturePermission(user.id, 'canViewFinancialSummary')}
-                                      disabled={!user.isAllowed}
                                     />
                                     <span>📊 ดูสรุปบัญชีรายรับ-รายจ่ายบริษัท</span>
                                   </label>
                                 </div>
                               </td>
-                              {currentUser.role === 'admin' && (
-                                <td style={{ textAlign: 'center' }}>
-                                  <button 
-                                    className="btn btn-danger" 
-                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
-                                    onClick={() => handleDeleteLineUserPermission(user.id)}
-                                    title="ลบสิทธิ์"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </td>
-                              )}
+                              <td style={{ textAlign: 'center' }}>
+                                <button 
+                                  className="btn btn-danger" 
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
+                                  onClick={() => handleDeleteLineUserPermission(user.id)}
+                                  title="ลบสิทธิ์"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
                             </tr>
                           ))
                         }
