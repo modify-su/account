@@ -4868,24 +4868,11 @@ export default function App() {
               </div>
             </header>
 
-            {/* Sub-tabs Navigation */}
-            <div className="sub-tabs-container mb-4" style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
-              <button 
-                className={`btn ${lineSubTab === 'permissions' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setLineSubTab('permissions')}
-              >
-                🔐 1. กำหนดสิทธิ์เปิด-ปิด LINE Bot พนักงาน
-              </button>
-              <button 
-                className={`btn ${lineSubTab === 'simulator' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setLineSubTab('simulator')}
-              >
-                🤖 2. จำลองแชทโต้ตอบ & สแกนสลิป LINE
-              </button>
-            </div>
-
             {/* ================= 1. LINE BOT USER PERMISSIONS VIEW ================= */}
-            {lineSubTab === 'permissions' && (
+            <div style={{ marginBottom: '2.5rem' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                🔐 1. กำหนดสิทธิ์เปิด-ปิด LINE Bot พนักงาน
+              </div>
               <div>
                 {/* Metrics Grid */}
                 <div className="summary-grid mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
@@ -5023,11 +5010,13 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* ================= 2. LINE BOT SIMULATOR VIEW ================= */}
-            {lineSubTab === 'simulator' && (
-              <div>
+            <div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                🤖 2. จำลองแชทโต้ตอบ & สแกนสลิป LINE
+              </div>
                 {/* User Selector Bar for Simulator */}
                 <div className="glass-card mb-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -5239,9 +5228,8 @@ export default function App() {
               </div>
             </div>
           </div>
-        )}
-      </div>
-    )}
+        </div>
+      )}
 
         {/* ================= DOCUMENT HUB ARCHIVE TAB ================= */}
         {activeTab === 'dochub' && (
