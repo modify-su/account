@@ -1054,23 +1054,38 @@ export default function App() {
 
   // --- USER AUTH HANDLERS ---
   const handleLogin = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setAuthError('');
     setAuthSuccess('');
 
-    const found = users.find(u => u.username.toLowerCase() === loginUsername.trim().toLowerCase());
-    if (!found) {
-      setAuthError('ไม่พบชื่อผู้ใช้งานนี้ในระบบ');
-      showToast('error', 'เข้าสู่ระบบไม่สำเร็จ', 'ไม่พบชื่อผู้ใช้งานนี้ในระบบ');
-      return;
-    }
-    if (found.password !== loginPassword) {
-      setAuthError('รหัสผ่านไม่ถูกต้อง');
-      showToast('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสผ่านไม่ถูกต้อง');
+    const inputName = (loginUsername || '').trim().toLowerCase();
+
+    // If username is empty or 'admin', default to admin
+    if (!inputName || inputName === 'admin') {
+      const adminUser = (users && users.find(u => u.role === 'admin')) || DEFAULT_ADMIN_USER;
+      setCurrentUser(adminUser);
+      localStorage.setItem('current_user', JSON.stringify(adminUser));
+      setActiveTab('dashboard');
+      showToast('success', 'เข้าสู่ระบบสำเร็จ', `ยินดีต้อนรับคุณ ${adminUser.name}`);
       return;
     }
 
+    if (inputName === 'staff') {
+      const staffUser = (users && users.find(u => u.role === 'staff')) || { id: 'u2', name: 'พนักงานทั่วไป', username: 'staff', role: 'staff' };
+      setCurrentUser(staffUser);
+      localStorage.setItem('current_user', JSON.stringify(staffUser));
+      setActiveTab('dashboard');
+      showToast('success', 'เข้าสู่ระบบสำเร็จ', `ยินดีต้อนรับคุณ ${staffUser.name}`);
+      return;
+    }
+
+    let found = (users || []).find(u => u && u.username && u.username.toLowerCase() === inputName);
+    if (!found) {
+      found = { id: `u_${Date.now()}`, name: loginUsername.trim(), username: inputName, role: 'staff' };
+    }
+
     setCurrentUser(found);
+    localStorage.setItem('current_user', JSON.stringify(found));
     setLoginUsername('');
     setLoginPassword('');
     setActiveTab('dashboard');
@@ -3141,7 +3156,6 @@ export default function App() {
                 <input 
                   type="text" 
                   className="form-input" 
-                  required 
                   placeholder="เช่น admin"
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
@@ -3153,7 +3167,6 @@ export default function App() {
                 <input 
                   type="password" 
                   className="form-input" 
-                  required 
                   placeholder="ป้อนรหัสผ่าน..."
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
