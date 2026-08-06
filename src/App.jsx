@@ -293,7 +293,7 @@ export default function App() {
   
   // --- USER AUTHENTICATION & DATABASE STATES ---
   const [users, setUsers] = useState(() => safeJSONParse('users', DEFAULT_USERS));
-  const [currentUser, setCurrentUser] = useState(() => safeJSONParse('current_user', DEFAULT_ADMIN_USER));
+  const [currentUser, setCurrentUser] = useState(() => safeJSONParse('current_user', null));
 
   const [loginTab, setLoginTab] = useState('login'); // login, register
   const [authError, setAuthError] = useState('');
@@ -1390,6 +1390,7 @@ export default function App() {
         }
       }
       setCurrentUser(null);
+      localStorage.removeItem('current_user');
       setActiveTab('dashboard');
       showToast('info', 'ออกจากระบบเรียบร้อย', 'คุณได้ออกจากระบบเรียบร้อยแล้ว');
     }
