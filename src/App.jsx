@@ -3248,40 +3248,6 @@ export default function App() {
                 )}
               </button>
 
-              {/* Quick One-Click Demo Login Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>⚡ ปุ่มทางด่วนเข้าใช้งานระบบทันที (Demo Access):</span>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-primary" 
-                    style={{ flex: 1, padding: '0.5rem 0.6rem', fontSize: '0.78rem', justifyContent: 'center' }}
-                    onClick={() => {
-                      const adminUser = (users && users.find(u => u.role === 'admin')) || { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', role: 'admin' };
-                      setCurrentUser(adminUser);
-                      localStorage.setItem('current_user', JSON.stringify(adminUser));
-                      setActiveTab('dashboard');
-                      showToast('success', 'เข้าสู่ระบบสำเร็จ', 'เข้าใช้งานในฐานะผู้ดูแลระบบ (Admin)');
-                    }}
-                  >
-                    👑 เข้าใช้งาน (Admin)
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
-                    style={{ flex: 1, padding: '0.5rem 0.6rem', fontSize: '0.78rem', justifyContent: 'center' }}
-                    onClick={() => {
-                      const staffUser = (users && users.find(u => u.role === 'staff')) || { id: 'u2', name: 'พนักงานทั่วไป', username: 'staff', role: 'staff' };
-                      setCurrentUser(staffUser);
-                      localStorage.setItem('current_user', JSON.stringify(staffUser));
-                      setActiveTab('dashboard');
-                      showToast('success', 'เข้าสู่ระบบสำเร็จ', 'เข้าใช้งานในฐานะพนักงาน (Staff)');
-                    }}
-                  >
-                    👤 เข้าใช้งาน (Staff)
-                  </button>
-                </div>
-              </div>
 
               <div className="login-toggle-link" onClick={() => { setLoginTab('register'); setAuthError(''); }} style={{ marginTop: '0.5rem' }}>
                 ไม่มีบัญชีใช่หรือไม่? สมัครใช้งานใหม่ที่นี่
