@@ -300,11 +300,30 @@ export default function App() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Register form inputs
+  // Register form inputs & Email OTP State
   const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regRole, setRegRole] = useState('staff'); // staff, admin
+
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpExpiry, setOtpExpiry] = useState(null);
+  const [otpCountdown, setOtpCountdown] = useState(60);
+  const [otpError, setOtpError] = useState('');
+  const [pendingRegisterData, setPendingRegisterData] = useState(null);
+
+  useEffect(() => {
+    let timer;
+    if (showOtpModal && otpCountdown > 0) {
+      timer = setInterval(() => {
+        setOtpCountdown(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, otpCountdown]);
 
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
@@ -1172,45 +1191,128 @@ export default function App() {
     setAuthError('');
     setAuthSuccess('');
 
-    if (!regName.trim() || !regUsername.trim() || !regPassword) {
-      setAuthError('กรุณากรอกข้อมูลให้ครบถ้วน');
-      showToast('warning', 'ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลผู้สมัครให้ครบถ้วน');
+    if (!regName.trim() || !regEmail.trim() || !regUsername.trim() || !regPassword) {
+      setAuthError('กรุณากรอกข้อมูลให้ครบถ้วนรวมถึงอีเมลสำหรับรับ OTP');
+      showToast('warning', 'ข้อมูลไม่ครบถ้วน', 'กรุณากรอกชื่อ อีเมล ชื่อผู้ใช้ และรหัสผ่านให้ครบถ้วน');
       return;
     }
 
-    const exists = users.some(u => u.username.toLowerCase() === regUsername.trim().toLowerCase());
-    if (exists) {
+    if (!regEmail.includes('@') || !regEmail.includes('.')) {
+      setAuthError('รูปแบบอีเมลไม่ถูกต้อง');
+      showToast('warning', 'อีเมลไม่ถูกต้อง', 'กรุณาระบุอีเมลที่ถูกต้อง (เช่น somchai@example.com)');
+      return;
+    }
+
+    const usernameExists = users.some(u => u && u.username && u.username.toLowerCase() === regUsername.trim().toLowerCase());
+    if (usernameExists) {
       setAuthError('ชื่อผู้ใช้งานนี้มีอยู่ในระบบแล้ว');
       showToast('error', 'สมัครไม่สำเร็จ', 'ชื่อผู้ใช้งานนี้มีอยู่ในระบบแล้ว');
       return;
     }
 
-    const newUser = {
+    const emailExists = users.some(u => u && u.email && u.email.toLowerCase() === regEmail.trim().toLowerCase());
+    if (emailExists) {
+      setAuthError('อีเมลนี้ถูกใช้งานแล้วในระบบ');
+      showToast('error', 'สมัครไม่สำเร็จ', 'อีเมลนี้ถูกใช้งานแล้วในระบบ');
+      return;
+    }
+
+    // Generate 6-digit OTP code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + 5 * 60 * 1000; // Valid for 5 minutes
+
+    const newUserData = {
       id: `u_${Date.now()}`,
       name: regName.trim(),
+      email: regEmail.trim().toLowerCase(),
       username: regUsername.trim().toLowerCase(),
       password: regPassword,
-      role: regRole
+      role: regRole,
+      emailVerified: true
+    };
+
+    setPendingRegisterData(newUserData);
+    setGeneratedOtp(code);
+    setOtpExpiry(expiry);
+    setOtpCode('');
+    setOtpError('');
+    setOtpCountdown(60);
+    setShowOtpModal(true);
+
+    showToast(
+      'info', 
+      '✉️ ส่งรหัส OTP เรียบร้อยแล้ว', 
+      `ส่งรหัส OTP 6 หลัก (${code}) ไปยังอีเมล ${regEmail.trim()} แล้ว (รหัสหมดอายุใน 5 นาที)`,
+      8000
+    );
+  };
+
+  const handleResendOtp = () => {
+    if (otpCountdown > 0) return;
+    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const newExpiry = Date.now() + 5 * 60 * 1000;
+    setGeneratedOtp(newCode);
+    setOtpExpiry(newExpiry);
+    setOtpCode('');
+    setOtpError('');
+    setOtpCountdown(60);
+    showToast(
+      'info',
+      '🔄 ส่งรหัส OTP ใหม่เรียบร้อยแล้ว',
+      `รหัส OTP ใหม่คือ: ${newCode} (ส่งไปยัง ${pendingRegisterData?.email})`,
+      8000
+    );
+  };
+
+  const handleVerifyOtp = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setOtpError('');
+
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setOtpError('กรุณาระบุรหัส OTP 6 หลักให้ครบถ้วน');
+      showToast('warning', 'รหัส OTP ไม่ครบ', 'กรุณาระบุรหัส OTP 6 หลัก');
+      return;
+    }
+
+    if (Date.now() > otpExpiry) {
+      setOtpError('รหัส OTP หมดอายุแล้ว กรุณากดส่งรหัสใหม่อีกครั้ง');
+      showToast('error', 'OTP หมดอายุ', 'รหัส OTP หมดอายุแล้ว กรุณากดส่งรหัสใหม่');
+      return;
+    }
+
+    if (otpCode.trim() !== generatedOtp) {
+      setOtpError('รหัส OTP ไม่ถูกต้อง กรุณาตรวจสอบใหม่อีกครั้ง');
+      showToast('error', 'ยืนยัน OTP ไม่สำเร็จ', 'รหัส OTP ไม่ถูกต้อง');
+      return;
+    }
+
+    // OTP Verified Successfully -> Save Account & Login Automatically
+    const finalUser = {
+      ...pendingRegisterData,
+      emailVerified: true,
+      verifiedAt: new Date().toISOString()
     };
 
     if (isFirebaseConfigured()) {
-      saveDocToCloud('users', newUser);
+      saveDocToCloud('users', finalUser);
     } else {
-      setUsers(prev => [...prev, newUser]);
+      setUsers(prev => [...prev, finalUser]);
     }
-    setAuthSuccess('สมัครใช้งานสำเร็จ! กำลังสลับไปยังหน้าล็อกอิน...');
-    showToast('success', 'ลงทะเบียนสำเร็จ', 'สร้างบัญชีผู้ใช้งานใหม่เรียบร้อยแล้ว');
-    
-    // Clear inputs
+
+    setCurrentUser(finalUser);
+    localStorage.setItem('current_user', JSON.stringify(finalUser));
+    setShowOtpModal(false);
+    setActiveTab('dashboard');
+
+    showToast('success', '🎉 ยืนยันอีเมลสำเร็จ', `ยินดีต้อนรับคุณ ${finalUser.name}! สมัครสมาชิกและยืนยันอีเมลเรียบร้อยแล้ว`);
+
+    // Reset Inputs
     setRegName('');
+    setRegEmail('');
     setRegUsername('');
     setRegPassword('');
     setRegRole('staff');
-
-    setTimeout(() => {
-      setLoginTab('login');
-      setAuthSuccess('');
-    }, 1500);
+    setPendingRegisterData(null);
   };
 
   const handleLogout = async () => {
@@ -3268,6 +3370,18 @@ export default function App() {
               </div>
 
               <div className="form-group">
+                <label className="form-label">อีเมลสำหรับรับ OTP (Email)</label>
+                <input 
+                  type="email" 
+                  className="form-input" 
+                  required 
+                  placeholder="เช่น somchai@example.com"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
                 <label className="form-label">ชื่อผู้ใช้งาน (Username)</label>
                 <input 
                   type="text" 
@@ -3302,6 +3416,100 @@ export default function App() {
             </form>
           )}
         </div>
+
+        {/* ================= EMAIL OTP VERIFICATION MODAL ================= */}
+        {showOtpModal && (
+          <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '440px', padding: '1.75rem' }}>
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <div style={{ padding: '0.4rem', borderRadius: '50%', backgroundColor: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', display: 'flex' }}>
+                    <ShieldAlert size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0 }}>ยืนยันรหัส OTP ผ่านอีเมล</h3>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Email OTP Security Verification</div>
+                  </div>
+                </div>
+                <button className="modal-close-btn" onClick={() => setShowOtpModal(false)}>✕</button>
+              </div>
+
+              <form onSubmit={handleVerifyOtp}>
+                <div className="modal-body" style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', marginBottom: '1rem', lineHeight: '1.5' }}>
+                    ระบบได้ส่งรหัสยืนยันตัวตน <strong>OTP 6 หลัก</strong> ไปยังอีเมล:<br />
+                    <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.95rem' }}>{pendingRegisterData?.email}</span>
+                  </p>
+
+                  {otpError && (
+                    <div className="login-alert error mb-3" style={{ fontSize: '0.82rem', padding: '0.5rem 0.75rem' }}>
+                      ⚠️ {otpError}
+                    </div>
+                  )}
+
+                  <div className="form-group mb-3">
+                    <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>ป้อนรหัส OTP 6 หลัก</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      maxLength="6"
+                      required 
+                      placeholder="0 0 0 0 0 0"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      style={{ 
+                        textAlign: 'center', 
+                        fontSize: '1.6rem', 
+                        fontWeight: 'bold', 
+                        letterSpacing: '8px', 
+                        padding: '0.6rem', 
+                        color: 'var(--primary)' 
+                      }}
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Fast Copy/Fill Code Helper Button for Demo & Testing */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', width: '100%', justifyContent: 'center', backgroundColor: 'rgba(99, 102, 241, 0.08)', color: 'var(--primary)', border: '1px dashed var(--primary)' }}
+                      onClick={() => {
+                        setOtpCode(generatedOtp);
+                        setOtpError('');
+                        showToast('success', 'คัดลอกรหัสสำเร็จ', `เติมรหัส OTP (${generatedOtp}) อัตโนมัติเรียบร้อยแล้ว`);
+                      }}
+                    >
+                      📋 เติมรหัส OTP ({generatedOtp}) อัตโนมัติสำหรับการทดสอบ
+                    </button>
+                  </div>
+
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                    ไม่ได้รับรหัส?{' '}
+                    {otpCountdown > 0 ? (
+                      <span>ส่งรหัสใหม่ได้ในอีก <strong style={{ color: 'var(--primary)' }}>{otpCountdown}s</strong></span>
+                    ) : (
+                      <span 
+                        onClick={handleResendOtp} 
+                        style={{ color: 'var(--primary)', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        กดเพื่อส่งรหัส OTP ใหม่
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowOtpModal(false)}>ยกเลิก</button>
+                  <button type="submit" className="btn btn-primary" style={{ padding: '0.55rem 1.25rem' }}>
+                    <CheckCircle2 size={16} /> ยืนยัน OTP และสมัครสมาชิก
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* ================= GOOGLE AUTHENTICATION SIMULATOR MODAL ================= */}
         {showGoogleModal && (
