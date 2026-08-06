@@ -245,6 +245,9 @@ const DEFAULT_SETTINGS = {
   lineWebhookUrl: 'https://api.flowledger.pro/v1/webhook',
   slipokApiKey: '',
   slipokBranchId: '',
+  emailJsServiceId: '',
+  emailJsTemplateId: '',
+  emailJsPublicKey: '',
   lineBotActive: true,
   appName: 'FlowLedger Pro',
   appLogo: '✨'
@@ -6790,6 +6793,51 @@ export default function App() {
                               หากไม่ได้กรอก: ระบบแชทจำลองจะทำงานในโหมดจำลอง (Mock OCR) ด้วยยอดเงินสุ่มแทนครับ
                             </p>
                           </div>
+                        </div>
+
+                        {/* EmailJS Real Email Delivery Settings */}
+                        <div style={{ marginTop: '2rem', borderTop: '1px dashed var(--border-color)', paddingTop: '1.5rem' }}>
+                          <h3 className="settings-section-title">📧 ตั้งค่าการส่งอีเมล OTP จริง (EmailJS Gateway)</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                            เชื่อมต่อกับบริการ EmailJS เพื่อส่งรหัสยืนยันตัวตน OTP 6 หลักเข้าสู่อีเมลจริงของผู้สมัครสแกนเข้า Inbox ทันที (ฟรี 200 ฉบับ/เดือน)
+                          </p>
+
+                          <div className="form-group">
+                            <label className="form-label">EmailJS Service ID</label>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="เช่น service_flowledger"
+                              value={settings.emailJsServiceId || ''}
+                              onChange={(e) => setSettings(prev => ({ ...prev, emailJsServiceId: e.target.value }))}
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label className="form-label">EmailJS Template ID</label>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="เช่น template_otp123"
+                              value={settings.emailJsTemplateId || ''}
+                              onChange={(e) => setSettings(prev => ({ ...prev, emailJsTemplateId: e.target.value }))}
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label className="form-label">EmailJS Public Key (User ID)</label>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="เช่น user_pubkey_abcdef123"
+                              value={settings.emailJsPublicKey || ''}
+                              onChange={(e) => setSettings(prev => ({ ...prev, emailJsPublicKey: e.target.value }))}
+                            />
+                          </div>
+
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block', lineHeight: '1.4' }}>
+                            💡 สมัครใช้งานและรับคีย์ส่งอีเมลฟรีได้ที่ <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>emailjs.com</a> (ใช้เวลา 2 นาทีเพียงผูก Gmail ของคุณ)
+                          </span>
                         </div>
                       </div>
                     </div>
