@@ -1205,8 +1205,16 @@ export default function App() {
           user_id: emailJsPublicKey,
           template_params: {
             to_email: targetEmail,
+            email: targetEmail,
+            user_email: targetEmail,
             to_name: recipientName || 'ผู้ใช้งาน',
+            name: recipientName || 'ผู้ใช้งาน',
             otp_code: otpCode,
+            otp: otpCode,
+            code: otpCode,
+            otpCode: otpCode,
+            OTP: otpCode,
+            message: `รหัสยืนยัน OTP ของคุณคือ: ${otpCode} (มีอายุใช้งาน 5 นาที)`,
             app_name: settings?.appName || 'FlowLedger Pro',
             expire_minutes: '5'
           }
