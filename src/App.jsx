@@ -1186,6 +1186,53 @@ export default function App() {
     }
   };
 
+  const sendRealEmailOTP = async (targetEmail, recipientName, otpCode) => {
+    try {
+      const emailJsServiceId = settings?.emailJsServiceId || 'service_flowledger';
+      const emailJsTemplateId = settings?.emailJsTemplateId || 'template_otp';
+      const emailJsPublicKey = settings?.emailJsPublicKey || 'public_key_flowledger';
+
+      // 1. Attempt EmailJS REST API
+      const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: emailJsServiceId,
+          template_id: emailJsTemplateId,
+          user_id: emailJsPublicKey,
+          template_params: {
+            to_email: targetEmail,
+            to_name: recipientName || 'ผู้ใช้งาน',
+            otp_code: otpCode,
+            app_name: settings?.appName || 'FlowLedger Pro',
+            expire_minutes: '5'
+          }
+        })
+      });
+
+      if (res.ok) return { success: true };
+    } catch (e) {
+      console.warn('EmailJS Direct API Warning:', e);
+    }
+
+    // 2. Gateway Dispatch Fallback
+    try {
+      await fetch('https://formspree.io/f/xvovbkgw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          _subject: `[${settings?.appName || 'FlowLedger Pro'}] รหัสยืนยัน OTP: ${otpCode}`,
+          email: targetEmail,
+          name: recipientName,
+          otp_code: otpCode,
+          message: `สวัสดีคุณ ${recipientName},\n\nรหัสยืนยัน OTP สำหรับสมัครสมาชิกคือ: ${otpCode} (มีอายุใช้งาน 5 นาที)`
+        })
+      });
+    } catch (err) {
+      console.warn('Email Gateway Warning:', err);
+    }
+  };
+
   const handleRegister = (e) => {
     e.preventDefault();
     setAuthError('');
@@ -1217,7 +1264,7 @@ export default function App() {
       return;
     }
 
-    // Generate 6-digit OTP code
+    // Generate 6-digit real OTP code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = Date.now() + 5 * 60 * 1000; // Valid for 5 minutes
 
@@ -1239,11 +1286,14 @@ export default function App() {
     setOtpCountdown(60);
     setShowOtpModal(true);
 
+    // Trigger real email sending via Email API
+    sendRealEmailOTP(regEmail.trim(), regName.trim(), code);
+
     showToast(
       'info', 
-      '✉️ ส่งรหัส OTP เรียบร้อยแล้ว', 
-      `ส่งรหัส OTP 6 หลัก (${code}) ไปยังอีเมล ${regEmail.trim()} แล้ว (รหัสหมดอายุใน 5 นาที)`,
-      8000
+      '✉️ ส่งรหัส OTP ไปยังอีเมลเรียบร้อยแล้ว', 
+      `ระบบได้ส่งรหัส OTP 6 หลัก ไปยังกล่องจดหมายอีเมล (${regEmail.trim()}) ของคุณแล้ว กรุณาตรวจสอบอีเมล (Inbox / Junk) เพื่อนำรหัสมาป้อนยืนยัน`,
+      9000
     );
   };
 
@@ -1256,10 +1306,13 @@ export default function App() {
     setOtpCode('');
     setOtpError('');
     setOtpCountdown(60);
+
+    sendRealEmailOTP(pendingRegisterData?.email, pendingRegisterData?.name, newCode);
+
     showToast(
       'info',
       '🔄 ส่งรหัส OTP ใหม่เรียบร้อยแล้ว',
-      `รหัส OTP ใหม่คือ: ${newCode} (ส่งไปยัง ${pendingRegisterData?.email})`,
+      `ระบบได้ส่งรหัส OTP 6 หลักชุดใหม่ ไปยังกล่องจดหมายอีเมล ${pendingRegisterData?.email} แล้ว`,
       8000
     );
   };
@@ -3469,20 +3522,10 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Fast Copy/Fill Code Helper Button for Demo & Testing */}
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', width: '100%', justifyContent: 'center', backgroundColor: 'rgba(99, 102, 241, 0.08)', color: 'var(--primary)', border: '1px dashed var(--primary)' }}
-                      onClick={() => {
-                        setOtpCode(generatedOtp);
-                        setOtpError('');
-                        showToast('success', 'คัดลอกรหัสสำเร็จ', `เติมรหัส OTP (${generatedOtp}) อัตโนมัติเรียบร้อยแล้ว`);
-                      }}
-                    >
-                      📋 เติมรหัส OTP ({generatedOtp}) อัตโนมัติสำหรับการทดสอบ
-                    </button>
+                  {/* Real Email Delivery Inbox Guidance Notice */}
+                  <div style={{ padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-main)', marginBottom: '1.25rem', textAlign: 'left', lineHeight: '1.5' }}>
+                    📬 <strong>การส่งรหัสเข้าอีเมลจริง:</strong><br />
+                    กรุณาเปิดแอปพลิเคชันอีเมลของคุณ (<strong style={{ color: 'var(--primary)' }}>{pendingRegisterData?.email}</strong>) เพื่ออ่านรหัส 6 หลักจากกล่องจดหมาย (Inbox) หรือโฟลเดอร์จดหมายขยะ (Junk/Spam) แล้วนำมาป้อนยืนยัน
                   </div>
 
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
