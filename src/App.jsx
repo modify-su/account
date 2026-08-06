@@ -265,7 +265,7 @@ const DEFAULT_CHAT_MESSAGES = [
   {
     id: 'm1',
     sender: 'bot',
-    text: 'สวัสดีครับ! ยินดีต้อนรับสู่ระบบ FlowLedger OCR Bot 🤖\n\nท่านสามารถถ่ายรูปภาพหรือส่งรูปภาพสลิปโอนเงิน หรือใบเสร็จสินค้า เพื่อให้ระบบช่วยสแกนและบันทึกบัญชีออฟฟิศย้อนหลังได้ทันทีครับ\n\nคำสั่งที่แนะนำ:\n👉 พิมพ์ "/summary" เพื่อดูสรุปรายรับรายจ่ายล่าสุด\n👉 พิมพ์ "/list" เพื่อเรียกดูรายการคลังเอกสารล่าสุด',
+    text: 'สวัสดีครับ! ยินดีต้อนรับสู่ระบบ FlowLedger OCR Bot 🤖\n\nท่านสามารถถ่ายรูปภาพสลิปโอนเงิน ใบเสร็จสินค้า หรือพิมพ์สอบถามยอดบัญชีออฟฟิศได้ทันทีครับ\n\nคำสั่งที่แนะนำ:\n👉 พิมพ์ "/summary" หรือ "สรุปการเงิน" เพื่อดูรายงานรายรับ-รายจ่ายประจำเดือนนี้\n👉 พิมพ์ "รายจ่ายเดือนนี้" หรือ "รายรับเดือนนี้" เพื่อดูยอดเจาะจง\n👉 พิมพ์ "/list" เพื่อเรียกดูรายการคลังเอกสารล่าสุด',
     time: '12:00:00'
   }
 ];
@@ -2770,13 +2770,40 @@ export default function App() {
       // Enforce Main LINE Access Permission Toggle
       if (activeLineUser && !activeLineUser.isAllowed) {
         botResponse = `🔴 *แจ้งเตือนปฏิเสธสิทธิ์การเข้าถึง (Access Denied)*\n\nขออภัย บัญชี LINE ของคุณ (${activeLineUser.employeeName}) ถูกปิดใช้งานสิทธิ์โดยผู้ดูแลระบบ (Administrator)\nกรุณาติดต่อ Admin เพื่อขอเปิดสิทธิ์ใช้งาน LINE Bot`;
-      } else if (cleanCmd === '/summary') {
-        if (activeLineUser && !activeLineUser.permissions?.canViewFinancialSummary) {
-          botResponse = `🔒 *สิทธิ์การเข้าถึงข้อมูลถูกจำกัด*\n\nขออภัย บัญชีของคุณ (${activeLineUser.employeeName}) ไม่มีสิทธิ์เข้าถึงสรุปรายงานการเงินของออฟฟิศ (สำหรับ Admin เท่านั้น)`;
+      } else if (
+        cleanCmd === '/summary' || 
+        cleanCmd.includes('สรุปการเงิน') || 
+        cleanCmd.includes('สรุปรายรับ') || 
+        cleanCmd.includes('สรุปรายจ่าย') || 
+        cleanCmd.includes('รายรับเดือนนี้') || 
+        cleanCmd.includes('รายจ่ายเดือนนี้') || 
+        cleanCmd.includes('รายรับ') || 
+        cleanCmd.includes('รายจ่าย') || 
+        cleanCmd.includes('สรุปเดือนนี้') ||
+        cleanCmd.includes('การเงิน')
+      ) {
+        const now = new Date();
+        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const thMonthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+        const monthText = `${thMonthNames[now.getMonth()]} ${now.getFullYear() + 543}`;
+
+        // Month-to-date calculation
+        const monthTxs = (transactions || []).filter(t => t && t.date && t.date.startsWith(currentYearMonth));
+        const monthIncome = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        const monthExpense = monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        const monthNet = monthIncome - monthExpense;
+
+        // All-time calculation
+        const allIncome = (transactions || []).filter(t => t && t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        const allExpense = (transactions || []).filter(t => t && t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        const allNet = allIncome - allExpense;
+
+        if (cleanCmd.includes('รายจ่ายเดือนนี้') || cleanCmd === 'รายจ่าย' || cleanCmd === 'สรุปรายจ่าย') {
+          botResponse = `📉 *รายงานสรุปรายจ่ายทั้งหมด*\n🗓️ ประจำเดือน: ${monthText}\n\n💸 รายจ่ายเดือนนี้: ฿${monthExpense.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📊 รายจ่ายรวมสะสมทั้งหมด: ฿${allExpense.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n\nบันทึกข้อมูลเรียลไทม์ผ่านบอทเรียบร้อยแล้ว 🤖`;
+        } else if (cleanCmd.includes('รายรับเดือนนี้') || cleanCmd === 'รายรับ' || cleanCmd === 'สรุปรายรับ') {
+          botResponse = `📈 *รายงานสรุปรายรับทั้งหมด*\n🗓️ ประจำเดือน: ${monthText}\n\n💸 รายรับเดือนนี้: ฿${monthIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📊 รายรับรวมสะสมทั้งหมด: ฿${allIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n\nบันทึกข้อมูลเรียลไทม์ผ่านบอทเรียบร้อยแล้ว 🤖`;
         } else {
-          const incomeSum = transactions.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
-          const expenseSum = transactions.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
-          botResponse = `📊 *สรุปสถานะการเงินปัจจุบัน*\n\n💸 รายรับรวม: ฿${incomeSum.toLocaleString('th-TH')}\n📉 รายจ่ายรวม: ฿${expenseSum.toLocaleString('th-TH')}\n💼 คงเหลือสุทธิ: ฿${(incomeSum - expenseSum).toLocaleString('th-TH')}\n\nบันทึกข้อมูลเรียลไทม์ผ่านบอทแล้ว`;
+          botResponse = `📊 *รายงานสรุปรายรับ-รายจ่าย ออฟฟิศ*\n🗓️ ประจำเดือน: ${monthText}\n\n📌 *ยอดประจำเดือนนี้ (Month-to-Date):*\n💸 รายรับเดือนนี้: ฿${monthIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📉 รายจ่ายเดือนนี้: ฿${monthExpense.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n💼 คงเหลือสุทธิเดือนนี้: ฿${monthNet.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n\n📌 *ยอดสะสมรวมทั้งหมด (All Time):*\n💸 รายรับรวมทั้งหมด: ฿${allIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📉 รายจ่ายรวมทั้งหมด: ฿${allExpense.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n💼 คงเหลือสะสมสุทธิ: ฿${allNet.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n\nข้อมูลอัปเดตเรียลไทม์ผ่านระบบ FlowLedger Bot 🤖`;
         }
       } else if (cleanCmd.includes('ลาป่วย') || cleanCmd.includes('ขอลา') || cleanCmd.includes('ใบลา')) {
         if (activeLineUser && !activeLineUser.permissions?.canSubmitLeave) {
@@ -2804,7 +2831,7 @@ export default function App() {
         const docList = documents.map(d => `📄 ${d.title} (฿${d.amount.toLocaleString()})`).slice(0, 5).join('\n');
         botResponse = `📂 *ประวัติเอกสารล่าสุด 5 รายการ*\n\n${docList || 'ไม่มีข้อมูลคลังเอกสาร'}\n\nเรียกดูเอกสารทั้งหมดในแท็บ "คลังเอกสารจัดเก็บ"`;
       } else {
-        botResponse = `🤖 สวัสดีครับคุณ ${activeLineUser?.employeeName || 'พนักงาน'}\n\nคำสั่งที่รองรับ:\n⚡ พิมพ์ "ลาป่วย มีไข้สูง" เพื่อยื่นใบลาอัตโนมัติ\n⚡ แนบภาพสลิป/บิล เพื่อสแกนลงบันทึกบัญชี\n⚡ พิมพ์ "/summary" เพื่อดูรายงานสรุปการเงิน`;
+        botResponse = `🤖 สวัสดีครับคุณ ${activeLineUser?.employeeName || 'พนักงาน'}\n\nคำสั่งที่รองรับ:\n⚡ พิมพ์ "รายจ่ายเดือนนี้" หรือ "รายรับเดือนนี้"\n⚡ พิมพ์ "/summary" เพื่อดูรายงานการเงินประจำเดือนทั้งหมด\n⚡ แนบภาพสลิป/บิล เพื่อสแกนลงบันทึกบัญชี\n⚡ พิมพ์ "ลาป่วย..." เพื่อยื่นใบลาอัตโนมัติ`;
       }
 
       const botMsg = {
