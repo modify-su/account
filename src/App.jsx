@@ -152,81 +152,127 @@ const DEFAULT_LINE_PERMISSIONS = [];
 
 const MOCK_SLIPS = [
   {
-    id: 'slip-sakarin-ptt',
-    name: 'สลิป ปตท. (นายศักรินทร์ สำรองจ่าย)',
+    id: 'slip-kbank',
+    name: '📲 สลิปโอนเงิน KBank (โอนเงินธนาคาร)',
+    docType: 'bank_slip',
+    type: 'income',
+    merchant: 'ธนาคารกสิกรไทย (KBank Mobile Banking)',
+    date: '2026-08-07',
+    time: '10:15:30',
+    amount: 4500,
+    ref: 'KB98471049283',
+    sender: 'นายสมชาย ยอดดี',
+    receiver: 'บริษัท โฟลว์เล็ดเจอร์ ซอฟต์แวร์ จำกัด',
+    category: 'รายได้จากการขาย',
+    description: 'สลิปโอนเงินค่าบริการซอฟต์แวร์รายเดือน',
+    style: { color: '#00A859', logo: 'KBANK' }
+  },
+  {
+    id: 'slip-scb-transfer',
+    name: '📲 สลิปโอนเงิน SCB Easy (โอนเงินธนาคาร)',
+    docType: 'bank_slip',
     type: 'expense',
-    merchant: 'สถานีบริการน้ำมัน ปตท. (PTT Station)',
-    date: '2026-07-20',
-    time: '09:15:00',
+    merchant: 'ธนาคารไทยพาณิชย์ (SCB Transfer)',
+    date: '2026-08-06',
+    time: '14:20:00',
     amount: 1450,
-    ref: 'PTT98471049',
+    ref: 'SCB889201940',
     sender: 'นายศักรินทร์ สุขใจ',
     receiver: 'สถานีบริการน้ำมัน ปตท.',
     category: 'ค่าเดินทางและยานพาหนะ',
-    description: 'ค่าน้ำมันเชื้อเพลิงเดินทางไปงานต่างจังหวัด',
-    style: { color: '#005696', logo: 'PTT' }
+    description: 'สลิปโอนเงินสำรองจ่ายค่าน้ำมันเชื้อเพลิง',
+    style: { color: '#4E2A84', logo: 'SCB' }
   },
   {
-    id: 'slip-sakarin-global',
-    name: 'สลิป Siam Global (นายศักรินทร์ สำรองจ่าย)',
+    id: 'receipt-tax-global',
+    name: '🧾 ใบเสร็จรายจ่าย/ใบกำกับภาษี (สยามโกลบอล)',
+    docType: 'official_receipt',
     type: 'expense',
-    merchant: 'สยามโกลบอลเฮ้าส์ (Siam Global House)',
-    date: '2026-07-19',
-    time: '14:30:00',
+    merchant: 'บริษัท สยามโกลบอลเฮ้าส์ จำกัด (มหาชน)',
+    date: '2026-08-05',
+    time: '13:45:00',
     amount: 3850,
-    ref: 'SGH-2026-48192',
+    ref: 'TAX-SGH2026-8819',
     sender: 'นายศักรินทร์ สุขใจ',
     receiver: 'สยามโกลบอลเฮ้าส์',
     category: 'ค่าอุปกรณ์สำนักงาน',
-    description: 'ซื้อวัสดุอุปกรณ์ซ่อมบำรุงและหลอดไฟออฟฟิศ',
-    style: { color: '#E30613', logo: 'GLOBAL' }
+    description: 'ใบเสร็จรับเงิน/ใบกำกับภาษีเต็มรูป อุปกรณ์ซ่อมบำรุงออฟฟิศ',
+    style: { color: '#E30613', logo: 'TAX TAX' }
   },
   {
-    id: 'slip-awarin-ptt',
-    name: 'สลิป ปตท. (คุณเอวาริณณ์ บัญชีบริษัท)',
+    id: 'receipt-tax-7eleven',
+    name: '🧾 ใบเสร็จรับเงิน 7-Eleven (ใบเสร็จรายจ่าย)',
+    docType: 'official_receipt',
     type: 'expense',
-    merchant: 'สถานีบริการน้ำมัน ปตท. (PTT Station)',
-    date: '2026-07-18',
-    time: '11:20:00',
-    amount: 1200,
-    ref: 'PTT28491048',
-    sender: 'นางสาวเอวาริณณ์ บัญชีหลักบริษัท',
-    receiver: 'สถานีบริการน้ำมัน ปตท.',
-    category: 'ค่าเดินทางและยานพาหนะ',
-    description: 'ค่าน้ำมันเชื้อเพลิงรถส่วนกลางออฟฟิศ',
-    style: { color: '#005696', logo: 'PTT' }
-  },
-  {
-    id: 'slip-kbank',
-    name: 'สลิปโอนเงิน KBank (รายได้)',
-    type: 'income',
-    merchant: 'ธนาคารกสิกรไทย (KBank)',
-    date: '2026-07-18',
-    time: '10:15:30',
-    amount: 2500,
-    ref: 'KB98471049283',
-    sender: 'นายสมชาย ยอดดี',
-    receiver: 'บริษัท โโฟลว์เล็ดเจอร์ ซอฟต์แวร์ จำกัด',
-    category: 'รายได้จากการขาย',
-    description: 'โอนค่าสินค้าไอที',
-    style: { color: '#00A859', logo: 'KB' }
-  },
-  {
-    id: 'bill-7eleven',
-    name: 'สลิป 7-Eleven (นายศักรินทร์ สำรองจ่าย)',
-    type: 'expense',
-    merchant: 'เซเว่น อีเลฟเว่น (7-Eleven)',
-    date: '2026-07-15',
+    merchant: 'เซเว่น อีเลฟเว่น (7-Eleven สาขาออฟฟิศ)',
+    date: '2026-08-04',
     time: '08:30:15',
-    amount: 185,
-    ref: 'SV-4829104',
+    amount: 245,
+    ref: 'RECEIPT-SV7-99104',
     sender: 'นายศักรินทร์ สุขใจ',
     receiver: '7-Eleven',
     category: 'ค่าอาหารและเครื่องดื่ม',
-    description: 'อาหารเช้าและกาแฟประชุมทีม',
-    style: { color: '#F05A28', logo: '7-11' }
+    description: 'ใบเสร็จรับเงิน ค่าอาหารเช้าและกาแฟประชุมทีม',
+    style: { color: '#F05A28', logo: 'RECEIPT' }
+  },
+  {
+    id: 'handwritten-somsak',
+    name: '✍️ ใบเสร็จเขียนมือ / บิลเงินสด (ร้านสมศักดิ์การช่าง)',
+    docType: 'handwritten_bill',
+    type: 'expense',
+    merchant: 'ร้านสมศักดิ์การช่าง (บิลเงินสดเขียนมือ)',
+    date: '2026-08-03',
+    time: '16:00:00',
+    amount: 1500,
+    ref: 'BILL-HAND-0042',
+    sender: 'นายศักรินทร์ สุขใจ',
+    receiver: 'ร้านสมศักดิ์การช่าง',
+    category: 'ค่าซ่อมแซมและบำรุงรักษา',
+    description: 'บิลเงินสดเขียนมือ ค่าซ่อมประตูกระจกหน้าออฟฟิศ (มีประทับตราและลายเซ็นผู้รับเงิน)',
+    style: { color: '#D97706', logo: 'HAND BILL' }
+  },
+  {
+    id: 'handwritten-food',
+    name: '✍️ ใบเสร็จเขียนมือ / บิลเงินสด (ร้านเจ้ไฝ)',
+    docType: 'handwritten_bill',
+    type: 'expense',
+    merchant: 'ร้านเจ้ไฝอาหารตามสั่ง (บิลเขียนมือ)',
+    date: '2026-08-02',
+    time: '12:30:00',
+    amount: 650,
+    ref: 'BILL-HAND-0018',
+    sender: 'นายศักรินทร์ สุขใจ',
+    receiver: 'ร้านเจ้ไฝอาหารตามสั่ง',
+    category: 'ค่ารับรองลูกค้าและประชุม',
+    description: 'บิลเงินสดเขียนมือ ค่าอาหารเลี้ยงต้อนรับลูกค้า',
+    style: { color: '#B45309', logo: 'HAND BILL' }
   }
 ];
+
+const detectSlipDocumentType = (item) => {
+  if (item?.docType) return item.docType;
+  const searchStr = `${item?.name || ''} ${item?.merchant || ''} ${item?.description || ''} ${item?.ref || ''}`.toLowerCase();
+  
+  if (searchStr.includes('เขียนมือ') || searchStr.includes('บิลเงินสด') || searchStr.includes('บิลมือ') || searchStr.includes('handwritten') || searchStr.includes('cash bill') || searchStr.includes('เจ้ไฝ') || searchStr.includes('การช่าง')) {
+    return 'handwritten_bill';
+  }
+  if (searchStr.includes('ใบเสร็จ') || searchStr.includes('ใบกำกับภาษี') || searchStr.includes('tax') || searchStr.includes('receipt') || searchStr.includes('7-eleven') || searchStr.includes('โกลบอล')) {
+    return 'official_receipt';
+  }
+  return 'bank_slip';
+};
+
+const getDocTypeBadge = (docType) => {
+  switch (docType) {
+    case 'handwritten_bill':
+      return { label: '✍️ ใบเสร็จเขียนมือ / บิลเงินสด', shortLabel: 'บิลเขียนมือ', bg: 'rgba(217, 119, 6, 0.15)', color: '#d97706', border: '#f59e0b' };
+    case 'official_receipt':
+      return { label: '🧾 ใบเสร็จรายจ่าย / ใบกำกับภาษี', shortLabel: 'ใบเสร็จรายจ่าย', bg: 'rgba(59, 130, 246, 0.15)', color: '#2563eb', border: '#3b82f6' };
+    case 'bank_slip':
+    default:
+      return { label: '📲 สลิปโอนเงิน (Bank E-Slip)', shortLabel: 'สลิปโอนเงิน', bg: 'rgba(16, 185, 129, 0.15)', color: '#059669', border: '#10b981' };
+  }
+};
 
 const DEFAULT_USERS = [
   { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', password: 'password123', role: 'admin' },
@@ -3055,7 +3101,10 @@ export default function App() {
           setTimeout(() => {
             setIsBotTyping(false);
             
-            // SENDER & ADVANCE PAYMENT (สำรองจ่าย) AUDIT LOGIC
+            // DOCUMENT CLASSIFICATION (แยกประเภทเอกสาร 3 ชนิด: สลิปโอนเงิน / ใบเสร็จรายจ่าย / ใบเสร็จเขียนมือ)
+            const detectedDocType = slip.docType || detectSlipDocumentType(slip);
+            const badgeInfo = getDocTypeBadge(detectedDocType);
+
             const senderName = (slip.sender || '').trim();
             const isOwner = senderName.includes('เอวาริณณ์') || senderName.includes('Awarin') || senderName.includes('Avarin');
             
@@ -3075,37 +3124,46 @@ export default function App() {
               id: docId,
               date: slip.date,
               time: slip.time,
+              docType: detectedDocType,
+              docTypeLabel: badgeInfo.label,
               type: slip.type === 'income' ? 'receipt' : 'tax_invoice',
-              title: isAdvancePayment ? `[สำรองจ่าย: ${senderName}] ${slip.merchant}` : `${slip.name} (OCR)`,
+              title: isAdvancePayment ? `[สำรองจ่าย: ${senderName}] ${slip.merchant}` : `[${badgeInfo.shortLabel}] ${slip.merchant}`,
               ref: slip.ref,
               amount: slip.amount,
               merchant: slip.merchant,
               category: finalCategory,
               sender: senderName || 'ผู้ยื่นบิล',
               status: 'archived',
-              details: isAdvancePayment 
+              details: `[ประเภท: ${badgeInfo.label}] ` + (isAdvancePayment 
                 ? `สำรองจ่ายโดย [${senderName}] ชำระให้ ${slip.merchant} (${slip.description || 'ไม่มีคำอธิบาย'})`
-                : `บันทึกอัตโนมัติจาก LINE Bot - ${slip.description}`
+                : `บันทึกอัตโนมัติจาก LINE Bot - ${slip.description}`)
             };
 
             const newTx = {
               id: `t_line_${Date.now()}`,
               date: slip.date,
               type: slip.type,
+              docType: detectedDocType,
               category: finalCategory,
               amount: slip.amount,
               description: isAdvancePayment
                 ? `[สำรองจ่ายโดย ${senderName}] ${slip.merchant} (${slip.description || 'ชำระค่าสินค้า/บริการ'})`
-                : `LINE Bot OCR: ${slip.merchant} (${slip.description})`,
+                : `[${badgeInfo.shortLabel}] ${slip.merchant} (${slip.description})`,
               ref: slip.ref
             };
 
-            let botMsgText = `✅ *สแกนสลิปสำเร็จ!*\n\n🏢 ร้านค้า/ผู้รับ: ${slip.merchant}\n👤 ผู้โอนเงิน: ${senderName || '-'}\n💰 ยอดเงิน: ฿${slip.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📂 หมวดหมู่: *${finalCategory}*\n📅 วันที่: ${slip.date}\n🔢 รหัสอ้างอิง: ${slip.ref}`;
+            let botMsgText = `✅ *สแกนและตรวจสอบประเภทเอกสารสำเร็จ!*\n\n📌 *ประเภทเอกสาร:* ${badgeInfo.label}\n🏢 ร้านค้า/ผู้รับ: ${slip.merchant}\n👤 ผู้โอน/ผู้ยื่นบิล: ${senderName || '-'}\n💰 ยอดเงิน: ฿${slip.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📂 หมวดหมู่บัญชี: *${finalCategory}*\n📅 วันที่: ${slip.date}\n🔢 รหัสอ้างอิง: ${slip.ref}`;
+
+            if (detectedDocType === 'handwritten_bill') {
+              botMsgText += `\n\n✍️ *บิลเขียนมือ:* ตรวจพบเป็น [บิลเงินสดเขียนมือ] บันทึกเข้าคลังเอกสารเรียบร้อยแล้ว แนะนำ Admin ตรวจสอบตราประทับและลายเซ็นผู้รับเงิน`;
+            } else if (detectedDocType === 'official_receipt') {
+              botMsgText += `\n\n🧾 *ใบเสร็จรายจ่าย:* ตรวจพบเป็น [ใบเสร็จรับเงิน/ใบกำกับภาษี] บันทึกเข้าสมุดบัญชีเพื่อใช้อ้างอิงภาษีซื้อ/รายจ่ายบริษัทเรียบร้อยแล้ว`;
+            } else {
+              botMsgText += `\n\n📲 *สลิปโอนเงิน:* ตรวจพบเป็น [สลิปโอนเงินธนาคาร (E-Slip)] ตรวจสอบสลิปผ่านระบบธนาคารเรียบร้อยแล้ว`;
+            }
 
             if (isAdvancePayment) {
-              botMsgText += `\n\n📌 *ระบุเป็นสำรองจ่าย:* สลิปนี้ขึ้นชื่อผู้โอนคือ [${senderName}] (ไม่ใช่บัญชีหลัก คุณเอวาริณณ์) ระบบระบุหมวดหมู่เป็น *[สำรองจ่าย]* และบันทึกเข้าสมุดบัญชีเรียบร้อยแล้ว`;
-            } else {
-              botMsgText += `\n\nระบบบันทึกบัญชีสำเร็จแล้ว และจัดสร้างเอกสารไฟล์ PDF สำหรับรายงานแล้ว`;
+              botMsgText += `\n\n📌 *ระบุเป็นสำรองจ่าย:* ผู้โอนคือ [${senderName}] (ไม่ใช่บัญชีหลัก คุณเอวาริณณ์) ระบุหมวดหมู่เป็น *[สำรองจ่าย]* เรียบร้อยแล้ว`;
             }
 
             const botMsg = {
