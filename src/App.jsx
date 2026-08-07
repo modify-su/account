@@ -373,7 +373,7 @@ export default function App() {
   
   // --- USER AUTHENTICATION & DATABASE STATES ---
   const [users, setUsers] = useState(() => safeJSONParse('users', DEFAULT_USERS));
-  const [currentUser, setCurrentUser] = useState(() => safeJSONParse('current_user', null));
+  const [currentUser, setCurrentUser] = useState(() => safeJSONParse('current_user', DEFAULT_ADMIN_USER));
 
   const [loginTab, setLoginTab] = useState('login'); // login, register
   const [authError, setAuthError] = useState('');
@@ -3550,6 +3550,38 @@ export default function App() {
 
           {loginTab === 'login' ? (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Quick 1-Click Access Buttons */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <button 
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1, justifyContent: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    const adminUser = (users && users.find(u => u.role === 'admin')) || DEFAULT_ADMIN_USER;
+                    setCurrentUser(adminUser);
+                    safeSetItem('current_user', JSON.stringify(adminUser));
+                    setActiveTab('dashboard');
+                    showToast('success', 'เข้าสู่ระบบสำเร็จ', `ยินดีต้อนรับคุณ ${adminUser.name}`);
+                  }}
+                >
+                  👑 เข้าใช้งาน (Admin)
+                </button>
+                <button 
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, justifyContent: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    const staffUser = (users && users.find(u => u.role === 'staff')) || { id: 'u2', name: 'พนักงานทั่วไป', username: 'staff', role: 'staff' };
+                    setCurrentUser(staffUser);
+                    safeSetItem('current_user', JSON.stringify(staffUser));
+                    setActiveTab('dashboard');
+                    showToast('success', 'เข้าสู่ระบบสำเร็จ', `ยินดีต้อนรับคุณ ${staffUser.name}`);
+                  }}
+                >
+                  👤 เข้าใช้งาน (Staff)
+                </button>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">ชื่อผู้ใช้งาน หรือ อีเมล (Username / Email)</label>
                 <input 
