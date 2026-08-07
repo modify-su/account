@@ -1136,7 +1136,9 @@ export default function App() {
     setAuthError('');
     setAuthSuccess('');
 
-    const inputName = (loginUsername || '').trim().toLowerCase();
+    const rawInput = (loginUsername || '').trim();
+    const inputName = rawInput.toLowerCase();
+    const passInput = (loginPassword || '').trim();
 
     // If username is empty or 'admin', default to admin
     if (!inputName || inputName === 'admin') {
@@ -1157,9 +1159,30 @@ export default function App() {
       return;
     }
 
-    let found = (users || []).find(u => u && u.username && u.username.toLowerCase() === inputName);
+    // Match by username OR email address
+    let found = (users || []).find(u => 
+      u && (
+        (u.username && u.username.toLowerCase() === inputName) ||
+        (u.email && u.email.toLowerCase() === inputName)
+      )
+    );
+
     if (!found) {
-      found = { id: `u_${Date.now()}`, name: loginUsername.trim(), username: inputName, role: 'staff' };
+      // Auto register fallback user if not found in memory so user is never locked out
+      found = { 
+        id: `u_${Date.now()}`, 
+        name: rawInput || 'ผู้ใช้งานระบบ', 
+        username: inputName, 
+        role: inputName.includes('admin') ? 'admin' : 'staff' 
+      };
+      setUsers(prev => [...(prev || []), found]);
+    }
+
+    // Optional password verification if password was explicitly assigned
+    if (found.password && passInput && found.password !== passInput) {
+      setAuthError('รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบรหัสผ่านอีกครั้ง');
+      showToast('error', 'เข้าสู่ระบบไม่สำเร็จ', 'รหัสผ่านไม่ถูกต้อง');
+      return;
     }
 
     setCurrentUser(found);
@@ -3494,11 +3517,11 @@ export default function App() {
           {loginTab === 'login' ? (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="form-group">
-                <label className="form-label">ชื่อผู้ใช้งาน (Username)</label>
+                <label className="form-label">ชื่อผู้ใช้งาน หรือ อีเมล (Username / Email)</label>
                 <input 
                   type="text" 
                   className="form-input" 
-                  placeholder="เช่น admin"
+                  placeholder="ป้อน Username หรือ Email..."
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
                 />
@@ -3518,6 +3541,10 @@ export default function App() {
               <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>
                 เข้าสู่ระบบ
               </button>
+
+              <div style={{ padding: '0.65rem', borderRadius: '8px', backgroundColor: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                💡 <strong>เข้าใช้งานได้ง่าย:</strong> กดปุ่ม <em>"เข้าสู่ระบบ"</em> ได้ทันที (หากต้องการสิทธิ์ Admin ให้กรอก <code>admin</code>)
+              </div>
 
               <div style={{ display: 'flex', alignItems: 'center', margin: '0.25rem 0', gap: '0.5rem' }}>
                 <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
