@@ -646,7 +646,7 @@ export default function App() {
         ref: `DOC-${Date.now().toString().slice(-6)}`,
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().slice(0, 5),
-        sender: currentUser.name || 'ผู้ใช้งานระบบ',
+        sender: currentUser?.name || 'ผู้ใช้งานระบบ',
         details: `อัปโหลดแนบไฟล์เอกสาร (${fileExt}) เข้าสู่ระบบ`,
         imageUrl: isImg ? base64Data : '',
         attachmentUrl: base64Data,
@@ -828,7 +828,7 @@ export default function App() {
   };
 
   const handleDeleteLineUserPermission = (id) => {
-    if (currentUser.role !== 'admin') {
+    if (currentUser?.role !== 'admin') {
       showToast('error', 'ไม่มีสิทธิ์', 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบสิทธิ์ผู้ใช้ได้');
       return;
     }
