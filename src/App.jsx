@@ -339,6 +339,34 @@ const safeJSONParse = (key, fallback) => {
   return fallback;
 };
 
+const safeSetItem = (key, value) => {
+  try {
+    const stringified = typeof value === 'string' ? value : JSON.stringify(value);
+    localStorage.setItem(key, stringified);
+  } catch (e) {
+    console.warn(`[Storage Quota Guard] Handled storage error for key "${key}":`, e);
+    if (e.name === 'QuotaExceededError' || e.code === 22 || (e.message && e.message.toLowerCase().includes('quota'))) {
+      try {
+        if (key === 'office_settings' && typeof value === 'object' && value?.appLogo?.length > 500) {
+          const cleanSettings = { ...value, appLogo: '✨' };
+          localStorage.setItem(key, JSON.stringify(cleanSettings));
+        } else if (Array.isArray(value)) {
+          const trimmedArray = value.slice(0, 20).map(item => {
+            if (!item || typeof item !== 'object') return item;
+            const copy = { ...item };
+            if (copy.attachmentUrl && copy.attachmentUrl.length > 500) copy.attachmentUrl = '';
+            if (copy.imageUrl && copy.imageUrl.length > 500) copy.imageUrl = '';
+            return copy;
+          });
+          localStorage.setItem(key, JSON.stringify(trimmedArray));
+        }
+      } catch (innerErr) {
+        console.error('Storage quota fallback cleanup failed:', innerErr);
+      }
+    }
+  }
+};
+
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -982,54 +1010,54 @@ export default function App() {
     }
   }, []);
 
-  // Sync session and settings to localStorage
+  // Sync session and settings to localStorage safely with QuotaExceededGuard
   useEffect(() => {
-    localStorage.setItem('current_user', currentUser ? JSON.stringify(currentUser) : '');
+    safeSetItem('current_user', currentUser ? JSON.stringify(currentUser) : '');
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('office_settings', JSON.stringify(settings));
+    safeSetItem('office_settings', settings);
   }, [settings]);
 
   useEffect(() => {
-    localStorage.setItem('menu_names', JSON.stringify(menuNames));
+    safeSetItem('menu_names', menuNames);
   }, [menuNames]);
 
   useEffect(() => {
-    localStorage.setItem('users', JSON.stringify(users));
+    safeSetItem('users', users);
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem('flowledger_txs_v3', JSON.stringify(transactions));
+    safeSetItem('flowledger_txs_v3', transactions);
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem('flowledger_invs_v3', JSON.stringify(invoices));
+    safeSetItem('flowledger_invs_v3', invoices);
   }, [invoices]);
 
   useEffect(() => {
-    localStorage.setItem('pos_products', JSON.stringify(products));
+    safeSetItem('pos_products', products);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('flowledger_chat_messages_v3', JSON.stringify(chatMessages));
+    safeSetItem('flowledger_chat_messages_v3', chatMessages);
   }, [chatMessages]);
 
   useEffect(() => {
-    localStorage.setItem('flowledger_docs_v3', JSON.stringify(documents));
+    safeSetItem('flowledger_docs_v3', documents);
   }, [documents]);
 
   useEffect(() => {
-    localStorage.setItem('flowledger_salaries_v3', JSON.stringify(salaries));
+    safeSetItem('flowledger_salaries_v3', salaries);
   }, [salaries]);
 
   useEffect(() => {
-    localStorage.setItem('flowledger_payroll_history_v3', JSON.stringify(payrollHistory));
+    safeSetItem('flowledger_payroll_history_v3', payrollHistory);
   }, [payrollHistory]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    safeSetItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {

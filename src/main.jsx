@@ -31,6 +31,8 @@ class ErrorBoundary extends React.Component {
 
   handleAutoLoginAdmin = () => {
     try {
+      localStorage.removeItem('office_settings');
+      localStorage.removeItem('flowledger_docs_v3');
       const adminUser = { id: 'u1', name: 'ผู้ดูแลระบบสูงสุด', username: 'admin', role: 'admin' };
       localStorage.setItem('current_user', JSON.stringify(adminUser));
     } catch (e) {
