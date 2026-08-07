@@ -322,9 +322,15 @@ const DEFAULT_CHAT_MESSAGES = [
 const safeJSONParse = (key, fallback) => {
   try {
     const saved = localStorage.getItem(key);
-    if (saved && saved !== 'undefined' && saved !== 'null') {
+    if (saved && saved !== 'undefined' && saved !== 'null' && saved.trim() !== '') {
       const parsed = JSON.parse(saved);
-      if (parsed !== null && parsed !== undefined) return parsed;
+      if (parsed !== null && parsed !== undefined) {
+        if (Array.isArray(fallback) && !Array.isArray(parsed)) return fallback;
+        if (fallback !== null && typeof fallback === 'object' && !Array.isArray(fallback)) {
+          if (typeof parsed !== 'object' || Array.isArray(parsed)) return fallback;
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn(`[Storage Sanitizer] Cleared invalid key "${key}":`, e);
