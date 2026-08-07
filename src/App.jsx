@@ -553,7 +553,17 @@ export default function App() {
     bankName: 'ธนาคารกสิกรไทย (KBank)'
   });
 
-  const [showProcessPayrollModal, setShowProcessPayrollModal] = useState(false);
+  // Edit Document / OCR Bill Amount Modal State
+  const [showEditDocModal, setShowEditDocModal] = useState(false);
+  const [editingDocItem, setEditingDocItem] = useState(null);
+  const [editDocForm, setEditDocForm] = useState({
+    title: '',
+    type: 'expense',
+    amount: '',
+    merchant: '',
+    category: 'ค่าใช้จ่ายทั่วไป',
+    sender: ''
+  });
   const [processingSalaryProfile, setProcessingSalaryProfile] = useState(null);
   const [payrollForm, setPayrollForm] = useState({
     monthYear: new Date().toISOString().slice(0, 7), // "YYYY-MM"
@@ -3200,6 +3210,75 @@ export default function App() {
     }, 150);
   };
 
+  const openDocEditModal = (doc) => {
+    if (!doc) return;
+    setEditingDocItem(doc);
+    setEditDocForm({
+      title: doc.title || '',
+      type: doc.type === 'receipt' ? 'income' : 'expense',
+      amount: doc.amount || '',
+      merchant: doc.merchant || '',
+      category: doc.category || 'ค่าใช้จ่ายทั่วไป',
+      sender: doc.sender || ''
+    });
+    setShowEditDocModal(true);
+  };
+
+  const handleSaveDocEdit = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!editingDocItem) return;
+
+    const numAmount = Number(editDocForm.amount) || 0;
+    const isExpense = editDocForm.type === 'expense';
+
+    const updatedDoc = {
+      ...editingDocItem,
+      title: editDocForm.title,
+      type: isExpense ? 'tax_invoice' : 'receipt',
+      amount: numAmount,
+      merchant: editDocForm.merchant,
+      category: editDocForm.category,
+      sender: editDocForm.sender
+    };
+
+    if (isFirebaseConfigured()) {
+      saveDocToCloud('documents', updatedDoc);
+    } else {
+      setDocuments(prev => (prev || []).map(d => d.id === updatedDoc.id ? updatedDoc : d));
+    }
+
+    // Also update corresponding transaction in transactions state
+    setTransactions(prev => (prev || []).map(t => {
+      if (t.ref === updatedDoc.ref || (t.description && t.description.includes(updatedDoc.ref))) {
+        return {
+          ...t,
+          type: editDocForm.type,
+          amount: numAmount,
+          category: editDocForm.category,
+          description: isExpense
+            ? `[รายจ่าย: ${editDocForm.category}] ${editDocForm.merchant} (แก้ไขยอดตามบิลจริง)`
+            : `[รายรับ: ${editDocForm.category}] ${editDocForm.merchant}`
+        };
+      }
+      return t;
+    }));
+
+    // Update chat messages if present
+    setChatMessages(prev => (prev || []).map(msg => {
+      if (msg.docLink && msg.docLink.id === updatedDoc.id) {
+        return {
+          ...msg,
+          docLink: updatedDoc,
+          text: msg.text.replace(/💰 ยอดเงิน: ฿[\d,.]+/, `💰 ยอดเงิน: ฿${numAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`)
+        };
+      }
+      return msg;
+    }));
+
+    setShowEditDocModal(false);
+    showToast('success', 'แก้ไขยอดเงินบิลสำเร็จ', `ปรับปรุงรายการเป็น [${isExpense ? '🔴 รายจ่าย' : '🟢 รายรับ'}] ยอดเงิน ฿${numAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} เรียบร้อยแล้ว`);
+  };
+
   const handleLineCustomUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -3208,6 +3287,7 @@ export default function App() {
       let merchant = 'ร้านค้าบริการภายนอก';
       let category = 'ค่าใช้จ่ายทั่วไป';
       let description = 'ซื้อของใช้ออฟฟิศทั่วไป';
+      let docType = 'official_receipt';
 
       if (fileNameLower.includes('ptt') || fileNameLower.includes('ปตท') || fileNameLower.includes('น้ำมัน')) {
         merchant = 'สถานีบริการน้ำมัน ปตท. (PTT Station)';
@@ -3217,18 +3297,28 @@ export default function App() {
         merchant = 'สยามโกลบอลเฮ้าส์ (Siam Global House)';
         category = 'ค่าอุปกรณ์สำนักงาน';
         description = 'ซื้อวัสดุอุปกรณ์ซ่อมแซมและเครื่องใช้ออฟฟิศ';
+      } else if (fileNameLower.includes('hand') || fileNameLower.includes('เขียนมือ') || fileNameLower.includes('สด') || fileNameLower.includes('บิล')) {
+        merchant = 'ร้านค้าท้องถิ่น (บิลเงินสดเขียนมือ)';
+        category = 'ค่าซ่อมแซมและบำรุงรักษา';
+        description = 'บิลเงินสดเขียนมือ ค่าซ่อมและของใช้ออฟฟิศ';
+        docType = 'handwritten_bill';
       }
+
+      // Try parsing number from filename (e.g., bill_1500.png)
+      const digitsMatch = file.name.match(/\d+/);
+      const parsedAmount = digitsMatch ? parseInt(digitsMatch[0], 10) : 1500;
 
       const customSlip = {
         id: `slip_custom_${Date.now()}`,
-        name: `ภาพอัปโหลด: ${file.name.slice(0,15)}...`,
-        type: 'expense',
+        name: `ภาพอัปโหลด: ${file.name.slice(0, 20)}`,
+        docType: docType,
+        type: 'expense', // ALWAYS expense for receipt/bill uploads
         merchant: merchant,
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().split(' ')[0].slice(0, 5),
-        amount: Math.floor(Math.random() * 2500) + 150,
-        ref: 'REF-UPLOAD-' + Math.floor(Math.random() * 1000000),
-        sender: 'นายศักรินทร์ สุขใจ',
+        amount: parsedAmount > 10 ? parsedAmount : 1500,
+        ref: 'REF-UPLOAD-' + Math.floor(100000 + Math.random() * 900000),
+        sender: activeLineUser?.employeeName || 'นายศักรินทร์ สุขใจ',
         receiver: settings.companyName,
         category: category,
         description: description,
@@ -3617,6 +3707,96 @@ export default function App() {
                   <button type="button" className="btn btn-secondary" onClick={() => setShowOtpModal(false)}>ยกเลิก</button>
                   <button type="submit" className="btn btn-primary" style={{ padding: '0.55rem 1.25rem' }}>
                     <CheckCircle2 size={16} /> ยืนยัน OTP และสมัครสมาชิก
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ================= EDIT DOCUMENT / OCR BILL AMOUNT MODAL ================= */}
+        {showEditDocModal && (
+          <div className="modal-overlay" onClick={() => setShowEditDocModal(false)}>
+            <div className="modal-content" style={{ maxWidth: '450px', padding: '1.75rem' }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  ✏️ แก้ไขยอดเงิน & ประเภทบิลรายจ่าย
+                </h3>
+                <button className="modal-close-btn" onClick={() => setShowEditDocModal(false)}>✕</button>
+              </div>
+
+              <form onSubmit={handleSaveDocEdit}>
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 'bold' }}>ประเภทบัญชี (Type)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        type="button" 
+                        className={`btn ${editDocForm.type === 'expense' ? 'btn-danger' : 'btn-secondary'}`}
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={() => setEditDocForm(prev => ({ ...prev, type: 'expense' }))}
+                      >
+                        🔴 รายจ่าย (Expense)
+                      </button>
+                      <button 
+                        type="button" 
+                        className={`btn ${editDocForm.type === 'income' ? 'btn-success' : 'btn-secondary'}`}
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={() => setEditDocForm(prev => ({ ...prev, type: 'income' }))}
+                      >
+                        🟢 รายรับ (Income)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 'bold' }}>จำนวนเงินตามบิลจริง (฿)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      className="form-input" 
+                      required 
+                      placeholder="ระบุจำนวนเงิน เช่น 1500"
+                      value={editDocForm.amount}
+                      onChange={(e) => setEditDocForm(prev => ({ ...prev, amount: e.target.value }))}
+                      style={{ fontSize: '1.2rem', fontWeight: 'bold', color: editDocForm.type === 'expense' ? 'var(--danger)' : 'var(--success)' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">ชื่อร้านค้า / ผู้รับเงิน</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      required 
+                      value={editDocForm.merchant}
+                      onChange={(e) => setEditDocForm(prev => ({ ...prev, merchant: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">หมวดหมู่บัญชี</label>
+                    <select 
+                      className="form-select"
+                      value={editDocForm.category}
+                      onChange={(e) => setEditDocForm(prev => ({ ...prev, category: e.target.value }))}
+                    >
+                      <option value="สำรองจ่าย">สำรองจ่าย</option>
+                      <option value="ค่าอาหารและเครื่องดื่ม">ค่าอาหารและเครื่องดื่ม</option>
+                      <option value="ค่าเดินทางและยานพาหนะ">ค่าเดินทางและยานพาหนะ</option>
+                      <option value="ค่าอุปกรณ์สำนักงาน">ค่าอุปกรณ์สำนักงาน</option>
+                      <option value="ค่าซ่อมแซมและบำรุงรักษา">ค่าซ่อมแซมและบำรุงรักษา</option>
+                      <option value="ค่ารับรองลูกค้าและประชุม">ค่ารับรองลูกค้าและประชุม</option>
+                      <option value="ค่าใช้จ่ายทั่วไป">ค่าใช้จ่ายทั่วไป</option>
+                      <option value="รายได้จากการขาย">รายได้จากการขาย</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="modal-footer" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', marginTop: '1rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowEditDocModal(false)}>ยกเลิก</button>
+                  <button type="submit" className="btn btn-primary">
+                    <Check size={16} /> บันทึกการแก้ไข
                   </button>
                 </div>
               </form>
@@ -5362,16 +5542,29 @@ export default function App() {
                           {msg.text.split('\n').map((line, idx) => <div key={idx}>{line}</div>)}
                           
                           {msg.docLink && (
-                            <div className="chat-bubble-doc-card" onClick={() => {
-                              setSelectedDoc(msg.docLink);
-                              setActiveTab('dochub');
-                            }}>
-                              <FileText size={18} style={{ color: 'var(--primary)' }} />
-                              <div>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1e293b' }}>ดูรายงานเอกสาร PDF</div>
-                                <div style={{ fontSize: '0.6rem', color: '#64748b' }}>รหัส: {msg.docLink.ref}</div>
+                            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                              <div className="chat-bubble-doc-card" onClick={() => {
+                                setSelectedDoc(msg.docLink);
+                                setActiveTab('dochub');
+                              }}>
+                                <FileText size={18} style={{ color: 'var(--primary)' }} />
+                                <div>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1e293b' }}>ดูรายงานเอกสาร PDF</div>
+                                  <div style={{ fontSize: '0.6rem', color: '#64748b' }}>รหัส: {msg.docLink.ref} (฿{(Number(msg.docLink.amount) || 0).toLocaleString()})</div>
+                                </div>
+                                <ChevronRight size={14} style={{ marginLeft: 'auto', color: '#64748b' }} />
                               </div>
-                              <ChevronRight size={14} style={{ marginLeft: 'auto', color: '#64748b' }} />
+                              <button 
+                                type="button" 
+                                className="btn btn-secondary" 
+                                style={{ fontSize: '0.68rem', padding: '0.2rem 0.5rem', justifyContent: 'center', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDocEditModal(msg.docLink);
+                                }}
+                              >
+                                ✏️ แก้ไขยอดเงิน / สลับประเภท (รายจ่าย)
+                              </button>
                             </div>
                           )}
 
