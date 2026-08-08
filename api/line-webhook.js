@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, limit } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBqLwYJ9m8VZxLHprterX_o-0AiAR9kSAM",
@@ -20,24 +20,55 @@ let cacheTime = 0;
 
 async function getCachedSettings() {
   const now = Date.now();
-  if (cachedSettings && now - cacheTime < 60000) {
+  if (cachedSettings && cachedSettings.lineChannelToken && now - cacheTime < 60000) {
     return cachedSettings;
   }
+  let result = {};
   try {
+    // 1. Try doc "global"
     const docRef = doc(db, "settings", "global");
     const docSnap = await Promise.race([
       getDoc(docRef),
-      new Promise(resolve => setTimeout(() => resolve(null), 1200))
+      new Promise(resolve => setTimeout(() => resolve(null), 1000))
     ]);
     if (docSnap && docSnap.exists()) {
-      cachedSettings = docSnap.data();
-      cacheTime = now;
-      return cachedSettings;
+      result = { ...result, ...docSnap.data() };
     }
-  } catch (e) {
-    // Non-blocking fallback
+  } catch (e) {}
+
+  if (!result.lineChannelToken) {
+    try {
+      // 2. Try doc "office_settings"
+      const docRef2 = doc(db, "settings", "office_settings");
+      const docSnap2 = await Promise.race([
+        getDoc(docRef2),
+        new Promise(resolve => setTimeout(() => resolve(null), 1000))
+      ]);
+      if (docSnap2 && docSnap2.exists()) {
+        result = { ...result, ...docSnap2.data() };
+      }
+    } catch (e) {}
   }
-  return cachedSettings || {};
+
+  if (!result.lineChannelToken) {
+    try {
+      // 3. Try collection query
+      const q = query(collection(db, "settings"), limit(5));
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise(resolve => setTimeout(() => resolve({ empty: true }), 1000))
+      ]);
+      if (snap && snap.docs) {
+        snap.docs.forEach(d => {
+          result = { ...result, ...d.data() };
+        });
+      }
+    } catch (e) {}
+  }
+
+  cachedSettings = result;
+  cacheTime = now;
+  return result;
 }
 
 function formatSlipDate(rawDate) {
@@ -179,7 +210,7 @@ export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    return res.status(200).send("LINE Webhook Active");
+    return res.status(200).send("LINE Webhook Ready");
   }
 
   if (req.method !== "POST") {
@@ -267,9 +298,10 @@ export default async function handler(req, res) {
           // Reply immediately
           await sendLineReply(replyToken, botReplyText, channelToken);
 
-        } else if (message.type === "image") {
+        } else if (message.type === "image" || message.type === "file") {
+          // Handle both image and file uploads
           const messageId = message.id;
-          let captionText = message.text || "";
+          let captionText = message.text || message.fileName || "";
 
           let slipAmount = 200;
           let slipDate = new Date().toISOString().split("T")[0];
@@ -281,17 +313,13 @@ export default async function handler(req, res) {
           let base64Image = null;
           let slipMemo = "";
 
-          // Fast OCR processing with 2.5s timeout
+          // Fast image OCR with aggressive 2.5s timeout
           const slipokApiKey = process.env.SLIPOK_API_KEY || settings.slipokApiKey;
-          if (slipokApiKey && !slipokApiKey.startsWith("slipok_api_key_mock") && slipokApiKey.trim() !== "") {
-            try {
-              let branchId = "71669";
-              const rawBranch = process.env.SLIPOK_BRANCH_ID || settings.slipokBranchId;
-              if (rawBranch && rawBranch.trim() !== "") {
-                const match = rawBranch.match(/(\d+)$/);
-                branchId = match ? match[1] : rawBranch.trim();
-              }
+          const hasSlipok = slipokApiKey && !slipokApiKey.startsWith("slipok_api_key_mock") && slipokApiKey.trim() !== "";
+          const hasLineToken = channelToken && !channelToken.startsWith("channel_token_mock");
 
+          if (hasLineToken) {
+            try {
               const lineImgUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
               const lineCtrl = new AbortController();
               const lineTid = setTimeout(() => lineCtrl.abort(), 2500);
@@ -307,43 +335,52 @@ export default async function handler(req, res) {
                 if (imageBuffer && imageBuffer.byteLength > 0) {
                   base64Image = `data:image/jpeg;base64,${Buffer.from(imageBuffer).toString("base64")}`;
 
-                  const formData = new FormData();
-                  formData.append("files", new Blob([imageBuffer], { type: "image/jpeg" }), "slip.jpg");
+                  if (hasSlipok) {
+                    let branchId = "71669";
+                    const rawBranch = process.env.SLIPOK_BRANCH_ID || settings.slipokBranchId;
+                    if (rawBranch && rawBranch.trim() !== "") {
+                      const match = rawBranch.match(/(\d+)$/);
+                      branchId = match ? match[1] : rawBranch.trim();
+                    }
 
-                  const ocrCtrl = new AbortController();
-                  const ocrTid = setTimeout(() => ocrCtrl.abort(), 2500);
+                    const formData = new FormData();
+                    formData.append("files", new Blob([imageBuffer], { type: "image/jpeg" }), "slip.jpg");
 
-                  const slipokRes = await fetch(`https://api.slipok.com/api/line/apikey/${branchId}`, {
-                    method: "POST",
-                    headers: { "x-authorization": slipokApiKey },
-                    body: formData,
-                    signal: ocrCtrl.signal
-                  });
-                  clearTimeout(ocrTid);
+                    const ocrCtrl = new AbortController();
+                    const ocrTid = setTimeout(() => ocrCtrl.abort(), 2500);
 
-                  if (slipokRes.ok) {
-                    const ocrData = await slipokRes.json();
-                    if (ocrData.success && ocrData.data) {
-                      const d = ocrData.data;
-                      slipAmount = parseFloat(d.amount) || slipAmount;
-                      if (d.transDate) slipDate = formatSlipDate(d.transDate);
-                      slipTime = d.transTime || slipTime;
-                      slipRef = d.refNo || slipRef;
-                      if (d.sender && (d.sender.displayName || d.sender.name)) {
-                        slipSender = d.sender.displayName || d.sender.name;
-                      }
-                      if (d.receiver && (d.receiver.displayName || d.receiver.name)) {
-                        slipReceiver = d.receiver.displayName || d.receiver.name;
-                      }
-                      if (d.memo || d.note || d.remark || d.comment) {
-                        slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
+                    const slipokRes = await fetch(`https://api.slipok.com/api/line/apikey/${branchId}`, {
+                      method: "POST",
+                      headers: { "x-authorization": slipokApiKey },
+                      body: formData,
+                      signal: ocrCtrl.signal
+                    });
+                    clearTimeout(ocrTid);
+
+                    if (slipokRes.ok) {
+                      const ocrData = await slipokRes.json();
+                      if (ocrData.success && ocrData.data) {
+                        const d = ocrData.data;
+                        slipAmount = parseFloat(d.amount) || slipAmount;
+                        if (d.transDate) slipDate = formatSlipDate(d.transDate);
+                        slipTime = d.transTime || slipTime;
+                        slipRef = d.refNo || slipRef;
+                        if (d.sender && (d.sender.displayName || d.sender.name)) {
+                          slipSender = d.sender.displayName || d.sender.name;
+                        }
+                        if (d.receiver && (d.receiver.displayName || d.receiver.name)) {
+                          slipReceiver = d.receiver.displayName || d.receiver.name;
+                        }
+                        if (d.memo || d.note || d.remark || d.comment) {
+                          slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
+                        }
                       }
                     }
                   }
                 }
               }
             } catch (err) {
-              // Proceed safely with local classification
+              console.warn("LINE image download / OCR error:", err.message);
             }
           }
 
@@ -450,7 +487,7 @@ export default async function handler(req, res) {
 
     return res.status(200).send("OK");
   } catch (error) {
-    console.error("Webhook Error:", error);
+    console.error("Webhook Global Error:", error);
     return res.status(200).send("OK");
   }
 }
@@ -463,7 +500,7 @@ async function sendLineReply(replyToken, text, channelToken) {
     : (process.env.LINE_CHANNEL_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.LINE_ACCESS_TOKEN);
 
   if (!token || token === "channel_token_mock_1234567890abcdef") {
-    console.log("No valid LINE Channel Token, skip external HTTP reply.");
+    console.log("No valid LINE Channel Token configured.");
     return;
   }
   
@@ -471,7 +508,7 @@ async function sendLineReply(replyToken, text, channelToken) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    await fetch("https://api.line.me/v2/bot/message/reply", {
+    const response = await fetch("https://api.line.me/v2/bot/message/reply", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -484,6 +521,11 @@ async function sendLineReply(replyToken, text, channelToken) {
       signal: controller.signal
     });
     clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("LINE reply API failed:", response.status, errText);
+    }
   } catch (err) {
     console.error("LINE reply fetch error:", err.message);
   }
