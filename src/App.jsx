@@ -1180,7 +1180,7 @@ export default function App() {
     setEditingCatType(cat.type || 'expense');
   };
 
-  const handleSaveEditCategory = (id) => {
+  const handleSaveEditCategory = async (id) => {
     if (!editingCatName.trim()) {
       showToast('warning', 'กรุณาระบุชื่อหมวดหมู่', 'ชื่อหมวดหมู่บัญชีต้องไม่เว้นว่าง');
       return;
@@ -1192,12 +1192,30 @@ export default function App() {
     setCategories(prev => prev.map(c => c.id === id ? { ...c, name: updatedName, type: editingCatType } : c));
 
     if (oldName && oldName !== updatedName) {
+      // 1. Update transactions
       setTransactions(prev => prev.map(t => t.category === oldName ? { ...t, category: updatedName } : t));
+      
+      // 2. Update documents in Document Hub
       setDocuments(prev => prev.map(d => d.category === oldName ? { ...d, category: updatedName } : d));
+
+      // 3. Sync all affected transactions and documents to Cloud Firestore
+      if (isFirebaseConfigured()) {
+        try {
+          const txsToUpdate = transactions.filter(t => t.category === oldName);
+          const docsToUpdate = documents.filter(d => d.category === oldName);
+          
+          await Promise.allSettled([
+            ...txsToUpdate.map(t => saveDocToCloud('transactions', { ...t, category: updatedName })),
+            ...docsToUpdate.map(d => saveDocToCloud('documents', { ...d, category: updatedName }))
+          ]);
+        } catch (err) {
+          console.error("Failed to sync updated category to cloud:", err);
+        }
+      }
     }
 
     setEditingCatId(null);
-    showToast('success', 'แก้ไขหมวดหมู่สำเร็จ', `ปรับปรุงเป็น "${updatedName}" เรียบร้อยแล้ว`);
+    showToast('success', 'แก้ไขหมวดหมู่สำเร็จ', `ปรับปรุงเป็น "${updatedName}" และอัปเดตคลังเอกสารเรียบร้อยแล้ว`);
   };
 
   const handleDeleteCategory = (id, name) => {
@@ -2154,13 +2172,22 @@ export default function App() {
 
     // 2. Sync with transactions list
     setTransactions(prev => prev.map(t => {
-      if (t.ref === editingDoc.ref || t.id.includes(editingDoc.id)) {
-        return {
+      const isMatch = (t.ref && editingDoc.ref && t.ref === editingDoc.ref) || 
+                      (t.id && editingDoc.id && t.id.includes(editingDoc.id)) ||
+                      (t.docId && t.docId === editingDoc.id) ||
+                      (t.id && editingDoc.id && t.id.replace('t_', '') === editingDoc.id.replace('doc_', ''));
+      if (isMatch) {
+        const syncedTx = {
           ...t,
           category: docForm.category,
           amount: parseFloat(docForm.amount) || t.amount,
-          description: `LINE Bot [${docForm.category}]: ${docForm.details || docForm.title}`
+          type: docForm.type === 'receipt' ? 'income' : 'expense',
+          description: `[${docForm.category}] ${docForm.details || docForm.title}`
         };
+        if (isFirebaseConfigured()) {
+          saveDocToCloud('transactions', syncedTx);
+        }
+        return syncedTx;
       }
       return t;
     }));
@@ -3005,8 +3032,29 @@ export default function App() {
           prev.map(t => (t.id === editingTransaction.id ? updatedTx : t))
         );
       }
+
+      // Sync category change to matching document in Document Hub
+      setDocuments(prev => prev.map(d => {
+        const isMatch = (d.ref && updatedTx.ref && d.ref === updatedTx.ref) || 
+                        (d.id && updatedTx.docId && d.id === updatedTx.docId) ||
+                        (d.id && updatedTx.id && d.id.replace('doc_', '') === updatedTx.id.replace('t_', ''));
+        if (isMatch) {
+          const syncedDoc = {
+            ...d,
+            category: updatedTx.category,
+            amount: cleanAmount,
+            type: updatedTx.type === 'income' ? 'receipt' : 'tax_invoice'
+          };
+          if (isFirebaseConfigured()) {
+            saveDocToCloud('documents', syncedDoc);
+          }
+          return syncedDoc;
+        }
+        return d;
+      }));
+
       setEditingTransaction(null);
-      showToast('success', 'บันทึกเรียบร้อย', 'แก้ไขรายการเดินบัญชีเรียบร้อยแล้ว');
+      showToast('success', 'บันทึกเรียบร้อย', `แก้ไขรายการและอัปเดตหมวดหมู่ในคลังเอกสารเป็น "${updatedTx.category}" เรียบร้อยแล้ว`);
     } else {
       const newTx = {
         id: `t_${Date.now()}`,
