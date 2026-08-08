@@ -2074,6 +2074,13 @@ export default function App() {
       let merchant = 'ร้านค้าตามบิล/ใบเสร็จ';
       let amountStr = '';
       let details = `ใบเสร็จรับเงิน ${file.name.slice(0, 20)}`;
+      let sender = 'ศักรินทร์ อดกล้า (พนักงานสำรองจ่าย)';
+      let isCompanyMainAccount = false;
+
+      if (fileNameLower.includes('เอวาริณณ์') || fileNameLower.includes('awarin')) {
+        sender = 'บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด';
+        isCompanyMainAccount = true;
+      }
 
       if (fileNameLower.includes('7-11') || fileNameLower.includes('seven') || fileNameLower.includes('cpall') || fileNameLower.includes('เซเว่น')) {
         merchant = 'CP ALL PCL (7-Eleven)';
@@ -2101,7 +2108,13 @@ export default function App() {
         details = 'ชำระค่าน้ำประปาประจำเดือน';
       }
 
-      // Try extract numeric total from filename if present (e.g. receipt_480.jpg)
+      // If sender is NOT "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด", force category to "สำรองจ่าย"
+      if (!isCompanyMainAccount) {
+        category = 'สำรองจ่าย';
+        details = `สำรองจ่ายโดย [${sender}] ชำระให้ ${merchant} (รอตั้งเบิกคืน)`;
+      }
+
+      // Try extract numeric total from filename if present (e.g. receipt_480.jpg, slip_50.png)
       const numMatches = file.name.match(/\d+[\._]?\d*/g);
       if (numMatches && numMatches.length > 0) {
         const potentialNum = numMatches.find(n => parseFloat(n) >= 10 && parseFloat(n) < 100000);
@@ -2114,12 +2127,13 @@ export default function App() {
       const currentTime = new Date().toTimeString().split(' ')[0].slice(0, 5);
 
       setScannedReceiptForm({
-        title: `ใบเสร็จ: ${merchant}`,
-        category,
+        title: !isCompanyMainAccount ? `[สำรองจ่าย: ${sender}] ${merchant}` : `ใบเสร็จ: ${merchant}`,
+        category: category,
         amount: amountStr,
         date: currentDate,
         time: currentTime,
         merchant,
+        sender,
         ref: refNo,
         details,
         imageUrl: base64Img,
@@ -2143,20 +2157,28 @@ export default function App() {
     }
 
     const amountNum = parseFloat(scannedReceiptForm.amount) || 0;
+    const senderName = (scannedReceiptForm.sender || '').trim();
+    const isCompanyMainAccount = senderName.includes('บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด') || 
+                                 senderName.includes('เอวาริณณ์ อินเตอร์กรุ๊ป') || 
+                                 senderName.includes('Awarin Intergroup');
+    
+    const finalCategory = !isCompanyMainAccount ? 'สำรองจ่าย' : scannedReceiptForm.category;
 
     // 1. Create Document record
     const newDoc = {
       id: `doc_receipt_${Date.now()}`,
-      title: scannedReceiptForm.title || `ใบเสร็จ: ${scannedReceiptForm.merchant}`,
+      title: !isCompanyMainAccount ? `[สำรองจ่าย: ${senderName}] ${scannedReceiptForm.merchant}` : (scannedReceiptForm.title || `ใบเสร็จ: ${scannedReceiptForm.merchant}`),
       type: scannedReceiptForm.type === 'expense' ? 'tax_invoice' : 'receipt',
-      category: scannedReceiptForm.category,
+      category: finalCategory,
       merchant: scannedReceiptForm.merchant,
-      sender: scannedReceiptForm.merchant,
+      sender: senderName || 'ผู้ยื่นบิล',
       amount: amountNum,
       date: scannedReceiptForm.date,
       time: scannedReceiptForm.time,
       ref: scannedReceiptForm.ref || `BILL-${Date.now().toString().slice(-6)}`,
-      details: scannedReceiptForm.details || `สแกนบิล/ใบเสร็จรับเงิน [${scannedReceiptForm.category}]`,
+      details: !isCompanyMainAccount 
+        ? `สำรองจ่ายโดย [${senderName}] ชำระให้ ${scannedReceiptForm.merchant} (รอตั้งเบิกเงินคืน)` 
+        : (scannedReceiptForm.details || `สแกนบิล/ใบเสร็จรับเงิน [${finalCategory}]`),
       imageUrl: scannedReceiptForm.imageUrl
     };
 
@@ -8469,6 +8491,63 @@ export default function App() {
 
                   {/* Right: Extracted Data Form */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    
+                    {/* Slip Name Verification Banner */}
+                    {!(scannedReceiptForm.sender || '').includes('บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด') && !(scannedReceiptForm.sender || '').includes('เอวาริณณ์ อินเตอร์กรุ๊ป') ? (
+                      <div style={{
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '8px',
+                        backgroundColor: 'rgba(217, 119, 6, 0.12)',
+                        border: '1px solid #f59e0b',
+                        color: '#d97706',
+                        fontSize: '0.78rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}>
+                        <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                        <div>
+                          <strong>📌 ระบุเป็นสำรองจ่าย:</strong> ชื่อในสลิปไม่ใช่ "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด" ระบบจัดหมวดหมู่เป็น <strong>[สำรองจ่าย]</strong> เพื่อรอตั้งเบิกเงินคืน
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '8px',
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid #10b981',
+                        color: '#059669',
+                        fontSize: '0.78rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}>
+                        <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+                        <div>
+                          <strong>🏢 บัญชีหลักบริษัท:</strong> ตรวจพบชื่อ "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด" (บันทึกรายจ่าย/รายรับบริษัทโดยตรง)
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 'bold' }}>👤 ชื่อผู้โอน / ผู้ชำระในสลิป (Payer / Sender)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        required
+                        value={scannedReceiptForm.sender || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const isCompany = val.includes('บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด') || val.includes('เอวาริณณ์ อินเตอร์กรุ๊ป');
+                          setScannedReceiptForm(prev => ({
+                            ...prev,
+                            sender: val,
+                            category: !isCompany ? 'สำรองจ่าย' : (prev.category === 'สำรองจ่าย' ? 'ค่าใช้จ่ายทั่วไป' : prev.category)
+                          }));
+                        }}
+                      />
+                    </div>
+
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 'bold' }}>ชื่อร้านค้า / ผู้รับเงิน (Merchant)</label>
                       <input 
@@ -8487,6 +8566,7 @@ export default function App() {
                         value={scannedReceiptForm.category}
                         onChange={(e) => setScannedReceiptForm(prev => ({ ...prev, category: e.target.value }))}
                       >
+                        <option value="สำรองจ่าย">💳 สำรองจ่าย (พนักงานจ่ายแทน/รอเบิกคืน)</option>
                         <option value="ค่าอาหารและเครื่องดื่ม">ค่าอาหารและเครื่องดื่ม</option>
                         <option value="ค่าเดินทางและยานพาหนะ">ค่าเดินทางและยานพาหนะ</option>
                         <option value="ค่าอุปกรณ์สำนักงาน">ค่าอุปกรณ์สำนักงาน</option>
