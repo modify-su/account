@@ -3656,7 +3656,6 @@ export default function App() {
                 )}
               </button>
 
-
               <div className="login-toggle-link" onClick={() => { setLoginTab('register'); setAuthError(''); }} style={{ marginTop: '0.5rem' }}>
                 ไม่มีบัญชีใช่หรือไม่? สมัครใช้งานใหม่ที่นี่
               </div>
@@ -3710,7 +3709,6 @@ export default function App() {
                   onChange={(e) => setRegPassword(e.target.value)}
                 />
               </div>
-
 
               <button type="submit" className="btn btn-success" style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>
                 ลงทะเบียน
@@ -4026,9 +4024,9 @@ export default function App() {
                       backgroundColor: '#f1f3f4', 
                       display: 'flex', 
                       alignItems: 'center', 
-                      justifyContent: 'center',
-                      fontSize: '1rem',
-                      color: '#5f6368'
+                      justifyContent: 'center', 
+                      fontSize: '1rem', 
+                      color: '#5f6368' 
                     }}>👤</div>
                     <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#1a73e8' }}>ใช้บัญชีอื่น (Use another account)</div>
                   </div>
