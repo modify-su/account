@@ -3220,6 +3220,18 @@ export default function App() {
             }
 
             const senderName = activeLineUser?.employeeName || 'นายศักรินทร์ สุขใจ';
+            const isCompanyMainAccount = senderName.includes('บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด') || 
+                                         senderName.includes('เอวาริณณ์ อินเตอร์กรุ๊ป') || 
+                                         senderName.includes('Awarin Intergroup');
+            
+            let finalCategory = category;
+            let isAdvancePayment = false;
+
+            if (!isCompanyMainAccount) {
+              isAdvancePayment = true;
+              finalCategory = 'สำรองจ่าย';
+            }
+
             const docId = `doc-${Date.now()}`;
             const refNo = `BILL-${Date.now().toString().slice(-6)}`;
 
@@ -3228,16 +3240,18 @@ export default function App() {
               date: new Date().toISOString().split('T')[0],
               time: new Date().toTimeString().split(' ')[0].slice(0, 5),
               docType: docType,
-              docTypeLabel: docType === 'handwritten_bill' ? 'บิลเงินสดเขียนมือ' : 'ใบเสร็จรายจ่าย',
+              docTypeLabel: isAdvancePayment ? '💳 สลิปสำรองจ่าย' : (docType === 'handwritten_bill' ? 'บิลเงินสดเขียนมือ' : 'ใบเสร็จรายจ่าย'),
               type: 'tax_invoice', // ALWAYS Expense / Tax Invoice
-              title: `[ใบเสร็จรายจ่าย] ${merchant}`,
+              title: isAdvancePayment ? `[สำรองจ่าย: ${senderName}] ${merchant}` : `[ใบเสร็จรายจ่าย] ${merchant}`,
               ref: refNo,
               amount: parsedAmt,
               merchant: merchant,
-              category: category,
+              category: finalCategory,
               sender: senderName,
               status: 'archived',
-              details: `บันทึกบิลรายจ่ายผ่าน LINE Chat โดย [${senderName}] - ${desc}`
+              details: isAdvancePayment 
+                ? `สำรองจ่ายโดย [${senderName}] - ${desc} (รอตั้งเบิกคืน)`
+                : `บันทึกบิลรายจ่ายผ่าน LINE Chat โดย [${senderName}] - ${desc}`
             };
 
             const newTx = {
@@ -3245,9 +3259,11 @@ export default function App() {
               date: new Date().toISOString().split('T')[0],
               type: 'expense',
               docType: docType,
-              category: category,
+              category: finalCategory,
               amount: parsedAmt,
-              description: `[รายจ่าย: ${category}] ${merchant} (${desc})`,
+              description: isAdvancePayment 
+                ? `[สำรองจ่ายโดย ${senderName}] ${merchant} (${desc})`
+                : `[รายจ่าย: ${finalCategory}] ${merchant} (${desc})`,
               ref: refNo
             };
 
@@ -3350,17 +3366,17 @@ export default function App() {
             const badgeInfo = getDocTypeBadge(detectedDocType);
 
             const senderName = (slip.sender || '').trim();
-            const isOwner = senderName.includes('เอวาริณณ์') || senderName.includes('Awarin') || senderName.includes('Avarin');
+            const isCompanyMainAccount = senderName.includes('บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด') || 
+                                         senderName.includes('เอวาริณณ์ อินเตอร์กรุ๊ป') || 
+                                         senderName.includes('Awarin Intergroup');
             
             let finalCategory = slip.category;
             let isAdvancePayment = false;
 
-            // If expense & sender is not "เอวาริณณ์" -> Auto categorize as "สำรองจ่าย"
-            if (slip.type === 'expense' || slip.type === 'tax_invoice') {
-              if (senderName && senderName !== '-' && senderName !== 'ผู้ยื่นบิล' && !isOwner) {
-                isAdvancePayment = true;
-                finalCategory = 'สำรองจ่าย';
-              }
+            // Strict Rule: ถ้าชื่อสลิปไม่ใช่ บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด ให้แจ้งเป็นสำรองจ่าย
+            if (!isCompanyMainAccount) {
+              isAdvancePayment = true;
+              finalCategory = 'สำรองจ่าย';
             }
 
             const docId = `doc-${Date.now()}`;
@@ -3369,45 +3385,59 @@ export default function App() {
               date: slip.date,
               time: slip.time,
               docType: detectedDocType,
-              docTypeLabel: badgeInfo.label,
-              type: slip.type === 'income' ? 'receipt' : 'tax_invoice',
-              title: isAdvancePayment ? `[สำรองจ่าย: ${senderName}] ${slip.merchant}` : `[${badgeInfo.shortLabel}] ${slip.merchant}`,
+              docTypeLabel: isAdvancePayment ? '💳 สลิปสำรองจ่าย' : badgeInfo.label,
+              type: 'tax_invoice', // Default to Expense
+              title: isAdvancePayment ? `[สำรองจ่าย: ${senderName || 'พนักงาน'}] ${slip.merchant}` : `[${badgeInfo.shortLabel}] ${slip.merchant}`,
               ref: slip.ref,
               amount: slip.amount,
               merchant: slip.merchant,
               category: finalCategory,
               sender: senderName || 'ผู้ยื่นบิล',
               status: 'archived',
-              details: `[ประเภท: ${badgeInfo.label}] ` + (isAdvancePayment 
-                ? `สำรองจ่ายโดย [${senderName}] ชำระให้ ${slip.merchant} (${slip.description || 'ไม่มีคำอธิบาย'})`
-                : `บันทึกอัตโนมัติจาก LINE Bot - ${slip.description}`)
+              details: isAdvancePayment 
+                ? `สำรองจ่ายโดย [${senderName}] ชำระให้ ${slip.merchant} (รอตั้งเบิกเงินคืน)`
+                : `บันทึกอัตโนมัติจาก LINE Bot - [${badgeInfo.label}] ${slip.description || ''}`
             };
 
             const newTx = {
               id: `t_line_${Date.now()}`,
               date: slip.date,
-              type: slip.type,
+              type: 'expense',
               docType: detectedDocType,
               category: finalCategory,
               amount: slip.amount,
               description: isAdvancePayment
-                ? `[สำรองจ่ายโดย ${senderName}] ${slip.merchant} (${slip.description || 'ชำระค่าสินค้า/บริการ'})`
-                : `[${badgeInfo.shortLabel}] ${slip.merchant} (${slip.description})`,
+                ? `[สำรองจ่ายโดย ${senderName}] ${slip.merchant} (รอตั้งเบิกคืน)`
+                : `[${badgeInfo.shortLabel}] ${slip.merchant} (${slip.description || 'รายจ่ายบริษัท'})`,
               ref: slip.ref
             };
 
-            let botMsgText = `✅ *สแกนและตรวจสอบประเภทเอกสารสำเร็จ!*\n\n📌 *ประเภทเอกสาร:* ${badgeInfo.label}\n🏢 ร้านค้า/ผู้รับ: ${slip.merchant}\n👤 ผู้โอน/ผู้ยื่นบิล: ${senderName || '-'}\n💰 ยอดเงิน: ฿${slip.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📂 หมวดหมู่บัญชี: *${finalCategory}*\n📅 วันที่: ${slip.date}\n🔢 รหัสอ้างอิง: ${slip.ref}`;
-
-            if (detectedDocType === 'handwritten_bill') {
-              botMsgText += `\n\n✍️ *บิลเขียนมือ:* ตรวจพบเป็น [บิลเงินสดเขียนมือ] บันทึกเข้าคลังเอกสารเรียบร้อยแล้ว แนะนำ Admin ตรวจสอบตราประทับและลายเซ็นผู้รับเงิน`;
-            } else if (detectedDocType === 'official_receipt') {
-              botMsgText += `\n\n🧾 *ใบเสร็จรายจ่าย:* ตรวจพบเป็น [ใบเสร็จรับเงิน/ใบกำกับภาษี] บันทึกเข้าสมุดบัญชีเพื่อใช้อ้างอิงภาษีซื้อ/รายจ่ายบริษัทเรียบร้อยแล้ว`;
-            } else {
-              botMsgText += `\n\n📲 *สลิปโอนเงิน:* ตรวจพบเป็น [สลิปโอนเงินธนาคาร (E-Slip)] ตรวจสอบสลิปผ่านระบบธนาคารเรียบร้อยแล้ว`;
-            }
+            let botMsgText = `✅ *สแกนและตรวจสอบประเภทเอกสารสำเร็จ!*\n\n`;
 
             if (isAdvancePayment) {
-              botMsgText += `\n\n📌 *ระบุเป็นสำรองจ่าย:* ผู้โอนคือ [${senderName}] (ไม่ใช่บัญชีหลัก คุณเอวาริณณ์) ระบุหมวดหมู่เป็น *[สำรองจ่าย]* เรียบร้อยแล้ว`;
+              botMsgText += `📌 *ประเภทเอกสาร:* 💳 สำรองจ่าย (Advance Payment)\n`;
+              botMsgText += `👤 *ผู้สำรองจ่าย/ผู้โอน:* ${senderName || '-'}\n`;
+              botMsgText += `🏢 *ร้านค้า/ผู้รับเงิน:* ${slip.merchant}\n`;
+              botMsgText += `💰 *ยอดเงินสำรองจ่าย:* ฿${slip.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n`;
+              botMsgText += `📂 *หมวดหมู่บัญชี:* *สำรองจ่าย* (รอตั้งเบิกจ่ายคืน)\n`;
+              botMsgText += `📅 *วันที่:* ${slip.date}\n`;
+              botMsgText += `🔢 *รหัสอ้างอิง:* ${slip.ref}\n\n`;
+              botMsgText += `📌 *แจ้งเตือนสำรองจ่าย:* ตรวจพบชื่อผู้โอน/ผู้ชำระคือ [${senderName}] (ไม่ใช่บัญชีหลัก "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด") ระบบได้ระบุเป็น *[สำรองจ่าย]* และบันทึกเข้าสมุดบัญชีเพื่อรอตั้งเบิกเรียบร้อยแล้วครับ`;
+            } else {
+              botMsgText += `📌 *ประเภทเอกสาร:* ${badgeInfo.label}\n`;
+              botMsgText += `🏢 *ร้านค้า/ผู้รับเงิน:* ${slip.merchant}\n`;
+              botMsgText += `👤 *บัญชีหลักบริษัท:* ${senderName || 'บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด'}\n`;
+              botMsgText += `💰 *ยอดเงิน:* ฿${slip.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n`;
+              botMsgText += `📂 *หมวดหมู่บัญชี:* *${finalCategory}*\n`;
+              botMsgText += `📅 *วันที่:* ${slip.date}\n`;
+              botMsgText += `🔢 *รหัสอ้างอิง:* ${slip.ref}\n\n`;
+              if (detectedDocType === 'handwritten_bill') {
+                botMsgText += `✍️ *บิลเขียนมือ:* ตรวจพบเป็น [บิลเงินสดเขียนมือ] บันทึกเข้าคลังเอกสารเรียบร้อยแล้ว`;
+              } else if (detectedDocType === 'official_receipt') {
+                botMsgText += `🧾 *ใบเสร็จรายจ่าย:* ตรวจพบเป็น [ใบเสร็จรับเงิน/ใบกำกับภาษี] บันทึกเข้าสมุดบัญชีเพื่อใช้อ้างอิงภาษีซื้อเรียบร้อยแล้ว`;
+              } else {
+                botMsgText += `📲 *สลิปโอนเงิน:* ตรวจพบเป็น [สลิปโอนเงินบัญชีบริษัท] ตรวจสอบสลิปผ่านระบบธนาคารเรียบร้อยแล้ว`;
+              }
             }
 
             const botMsg = {
