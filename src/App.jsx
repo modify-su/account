@@ -151,19 +151,19 @@ const DEFAULT_ATTENDANCE = [
 ];
 
 const DEFAULT_CATEGORIES = [
-  { id: 'cat-1', name: 'สำรองจ่าย', type: 'expense', isDefault: true, icon: '💳' },
-  { id: 'cat-2', name: 'ค่าอาหารและเครื่องดื่ม', type: 'expense', isDefault: true, icon: '🍽️' },
-  { id: 'cat-3', name: 'ค่าเดินทางและยานพาหนะ', type: 'expense', isDefault: true, icon: '🚗' },
-  { id: 'cat-4', name: 'ค่าอุปกรณ์สำนักงาน', type: 'expense', isDefault: true, icon: '📦' },
-  { id: 'cat-5', name: 'ค่าอินเทอร์เน็ตและโทรศัพท์', type: 'expense', isDefault: true, icon: '📶' },
-  { id: 'cat-6', name: 'ค่าเช่าสถานที่', type: 'expense', isDefault: true, icon: '🏢' },
-  { id: 'cat-7', name: 'ค่าสาธารณูปโภค', type: 'expense', isDefault: true, icon: '⚡' },
-  { id: 'cat-8', name: 'ค่าซ่อมแซมและบำรุงรักษา', type: 'expense', isDefault: true, icon: '🔧' },
-  { id: 'cat-9', name: 'ค่ารับรองลูกค้าและประชุม', type: 'expense', isDefault: true, icon: '👥' },
-  { id: 'cat-10', name: 'ค่าโฆษณาและการตลาด', type: 'expense', isDefault: true, icon: '📢' },
-  { id: 'cat-11', name: 'ค่าใช้จ่ายทั่วไป', type: 'expense', isDefault: true, icon: '📝' },
-  { id: 'cat-12', name: 'รายได้จากการขาย', type: 'income', isDefault: true, icon: '💰' },
-  { id: 'cat-13', name: 'รายได้จากการบริการ', type: 'income', isDefault: true, icon: '💼' }
+  { id: 'cat-1', name: 'สำรองจ่าย', type: 'expense', isDefault: true },
+  { id: 'cat-2', name: 'ค่าอาหารและเครื่องดื่ม', type: 'expense', isDefault: true },
+  { id: 'cat-3', name: 'ค่าเดินทางและยานพาหนะ', type: 'expense', isDefault: true },
+  { id: 'cat-4', name: 'ค่าอุปกรณ์สำนักงาน', type: 'expense', isDefault: true },
+  { id: 'cat-5', name: 'ค่าอินเทอร์เน็ตและโทรศัพท์', type: 'expense', isDefault: true },
+  { id: 'cat-6', name: 'ค่าเช่าสถานที่', type: 'expense', isDefault: true },
+  { id: 'cat-7', name: 'ค่าสาธารณูปโภค', type: 'expense', isDefault: true },
+  { id: 'cat-8', name: 'ค่าซ่อมแซมและบำรุงรักษา', type: 'expense', isDefault: true },
+  { id: 'cat-9', name: 'ค่ารับรองลูกค้าและประชุม', type: 'expense', isDefault: true },
+  { id: 'cat-10', name: 'ค่าโฆษณาและการตลาด', type: 'expense', isDefault: true },
+  { id: 'cat-11', name: 'ค่าใช้จ่ายทั่วไป', type: 'expense', isDefault: true },
+  { id: 'cat-12', name: 'รายได้จากการขาย', type: 'income', isDefault: true },
+  { id: 'cat-13', name: 'รายได้จากการบริการ', type: 'income', isDefault: true }
 ];
 
 const DEFAULT_LINE_PERMISSIONS = [];
@@ -560,11 +560,9 @@ export default function App() {
   const [catFilterTab, setCatFilterTab] = useState('all'); // all, expense, income, advance
   const [newCatName, setNewCatName] = useState('');
   const [newCatType, setNewCatType] = useState('expense'); // expense, income
-  const [newCatIcon, setNewCatIcon] = useState('📁');
   const [editingCatId, setEditingCatId] = useState(null);
   const [editingCatName, setEditingCatName] = useState('');
   const [editingCatType, setEditingCatType] = useState('expense');
-  const [editingCatIcon, setEditingCatIcon] = useState('📁');
 
   // LINE Bot Simulator State
   const [chatMessages, setChatMessages] = useState(() => safeJSONParse('flowledger_chat_messages_v3', DEFAULT_CHAT_MESSAGES));
@@ -1169,7 +1167,6 @@ export default function App() {
       id: `cat_${Date.now()}`,
       name: newCatName.trim(),
       type: newCatType,
-      icon: newCatIcon || (newCatType === 'income' ? '💰' : '📁'),
       isDefault: false
     };
     setCategories(prev => [...prev, newCat]);
@@ -1181,7 +1178,6 @@ export default function App() {
     setEditingCatId(cat.id);
     setEditingCatName(cat.name);
     setEditingCatType(cat.type || 'expense');
-    setEditingCatIcon(cat.icon || '📁');
   };
 
   const handleSaveEditCategory = (id) => {
@@ -1193,7 +1189,7 @@ export default function App() {
     const oldName = oldCat?.name;
     const updatedName = editingCatName.trim();
 
-    setCategories(prev => prev.map(c => c.id === id ? { ...c, name: updatedName, type: editingCatType, icon: editingCatIcon } : c));
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, name: updatedName, type: editingCatType } : c));
 
     if (oldName && oldName !== updatedName) {
       setTransactions(prev => prev.map(t => t.category === oldName ? { ...t, category: updatedName } : t));
@@ -7497,16 +7493,14 @@ export default function App() {
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '0.3rem',
                                   fontSize: '0.78rem',
-                                  padding: '0.25rem 0.6rem',
+                                  padding: '0.3rem 0.75rem',
                                   borderRadius: '6px',
                                   backgroundColor: c.name === 'สำรองจ่าย' ? 'rgba(217, 119, 6, 0.15)' : (c.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-card)'),
                                   border: `1px solid ${c.name === 'สำรองจ่าย' ? '#d97706' : (c.type === 'income' ? 'var(--success)' : 'var(--border-color)')}`,
                                   color: c.name === 'สำรองจ่าย' ? '#d97706' : (c.type === 'income' ? 'var(--success)' : 'inherit')
                                 }}
                               >
-                                <span>{c.icon || '📁'}</span>
                                 <strong>{c.name}</strong>
                               </span>
                             ))}
@@ -7982,19 +7976,7 @@ export default function App() {
                 </h3>
                 
                 <form onSubmit={editingCatId ? (e) => { e.preventDefault(); handleSaveEditCategory(editingCatId); } : handleAddCategory}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 140px auto', gap: '0.5rem', alignItems: 'flex-end' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>ไอคอน</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        style={{ width: '50px', textAlign: 'center', fontSize: '1.1rem', padding: '0.45rem' }} 
-                        value={editingCatId ? editingCatIcon : newCatIcon}
-                        onChange={(e) => editingCatId ? setEditingCatIcon(e.target.value) : setNewCatIcon(e.target.value)}
-                        placeholder="📁"
-                      />
-                    </div>
-
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px auto', gap: '0.75rem', alignItems: 'flex-end' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontSize: '0.75rem' }}>ชื่อหมวดหมู่บัญชี</label>
                       <input 
@@ -8004,7 +7986,7 @@ export default function App() {
                         required
                         value={editingCatId ? editingCatName : newCatName}
                         onChange={(e) => editingCatId ? setEditingCatName(e.target.value) : setNewCatName(e.target.value)}
-                        style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                        style={{ padding: '0.55rem 0.75rem', fontSize: '0.85rem' }}
                       />
                     </div>
 
@@ -8014,7 +7996,7 @@ export default function App() {
                         className="form-select"
                         value={editingCatId ? editingCatType : newCatType}
                         onChange={(e) => editingCatId ? setEditingCatType(e.target.value) : setNewCatType(e.target.value)}
-                        style={{ padding: '0.5rem', fontSize: '0.85rem' }}
+                        style={{ padding: '0.55rem', fontSize: '0.85rem' }}
                       >
                         <option value="expense">🔴 รายจ่าย</option>
                         <option value="income">🟢 รายรับ</option>
@@ -8024,15 +8006,15 @@ export default function App() {
                     <div style={{ display: 'flex', gap: '0.35rem' }}>
                       {editingCatId ? (
                         <>
-                          <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}>
+                          <button type="submit" className="btn btn-primary" style={{ padding: '0.55rem 0.85rem', fontSize: '0.85rem' }}>
                             💾 บันทึก
                           </button>
-                          <button type="button" className="btn btn-secondary" onClick={() => setEditingCatId(null)} style={{ padding: '0.5rem 0.65rem', fontSize: '0.85rem' }}>
+                          <button type="button" className="btn btn-secondary" onClick={() => setEditingCatId(null)} style={{ padding: '0.55rem 0.65rem', fontSize: '0.85rem' }}>
                             ยกเลิก
                           </button>
                         </>
                       ) : (
-                        <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        <button type="submit" className="btn btn-primary" style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                           <Plus size={15} /> เพิ่ม
                         </button>
                       )}
@@ -8082,14 +8064,14 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Category Table */}
+                {/* Category Table without icons */}
                 <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
                   <table className="custom-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                     <thead>
                       <tr>
-                        <th style={{ width: '45px', textAlign: 'center' }}>ไอคอน</th>
+                        <th style={{ width: '50px', textAlign: 'center' }}>ลำดับ</th>
                         <th>ชื่อหมวดหมู่บัญชี</th>
-                        <th style={{ width: '120px' }}>ประเภท</th>
+                        <th style={{ width: '130px' }}>ประเภท</th>
                         <th style={{ width: '110px', textAlign: 'center' }}>การจัดการ</th>
                       </tr>
                     </thead>
@@ -8098,7 +8080,7 @@ export default function App() {
                         .filter(c => catFilterTab === 'all' ? true : c.type === catFilterTab)
                         .map((cat, idx) => (
                           <tr key={cat.id || idx} style={{ backgroundColor: editingCatId === cat.id ? 'rgba(59, 130, 246, 0.08)' : undefined }}>
-                            <td style={{ textAlign: 'center', fontSize: '1.1rem' }}>{cat.icon || '📁'}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{idx + 1}</td>
                             <td>
                               <strong style={{ color: cat.name === 'สำรองจ่าย' ? '#d97706' : 'inherit' }}>{cat.name}</strong>
                               {cat.name === 'สำรองจ่าย' && (
@@ -8237,7 +8219,7 @@ export default function App() {
                       .filter(c => txForm.type === 'income' ? c.type === 'income' : c.type !== 'income')
                       .map(c => (
                         <option key={c.id || c.name} value={c.name}>
-                          {c.icon ? `${c.icon} ` : ''}{c.name}
+                          {c.name}
                         </option>
                       ))}
                   </select>
@@ -8739,7 +8721,7 @@ export default function App() {
                   >
                     {categories.map(c => (
                       <option key={c.id || c.name} value={c.name}>
-                        {c.icon ? `${c.icon} ` : ''}{c.name} {c.type === 'income' ? '(🟢 รายรับ)' : '(🔴 รายจ่าย)'}
+                        {c.name} {c.type === 'income' ? '(🟢 รายรับ)' : '(🔴 รายจ่าย)'}
                       </option>
                     ))}
                   </select>
@@ -8936,7 +8918,7 @@ export default function App() {
                       >
                         {categories.map(c => (
                           <option key={c.id || c.name} value={c.name}>
-                            {c.icon ? `${c.icon} ` : ''}{c.name} {c.name === 'สำรองจ่าย' ? '(💳 สำรองจ่าย/รอเบิกคืน)' : (c.type === 'income' ? '(🟢 รายรับ)' : '(🔴 รายจ่าย)')}
+                            {c.name} {c.name === 'สำรองจ่าย' ? '(💳 สำรองจ่าย/รอเบิกคืน)' : (c.type === 'income' ? '(🟢 รายรับ)' : '(🔴 รายจ่าย)')}
                           </option>
                         ))}
                       </select>
