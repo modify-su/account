@@ -47,17 +47,14 @@ export const getFirebaseConfig = () => {
 
 // Check if Firebase is fully configured
 export const isFirebaseConfigured = () => {
-  const mode = localStorage.getItem("flowledger_db_mode");
-  if (mode === "local") return false;
-  return !!getFirebaseConfig();
+  return true;
 };
 
 let app = null;
 let db = null;
 
 export const initFirebase = () => {
-  if (!isFirebaseConfigured()) return null;
-  const config = getFirebaseConfig();
+  const config = getFirebaseConfig() || DEFAULT_CONFIG;
   if (!config) return null;
 
   try {

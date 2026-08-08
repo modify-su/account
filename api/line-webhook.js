@@ -276,27 +276,16 @@ export default async function handler(req, res) {
               details: `บันทึกรายการผ่านข้อความ LINE: ${userText}`
             };
 
-            const newTx = {
-              id: `t_line_${Date.now()}`,
-              date: todayStr,
-              type: detected.isIncome ? "income" : "expense",
-              category: detected.category,
-              amount: amount,
-              description: `[LINE ข้อความ: ${detected.category}] ${userText}`,
-              ref: refNo
-            };
-
-            // Async background save
-            setDoc(doc(db, "documents", newDoc.id), newDoc).catch(() => {});
-            setDoc(doc(db, "transactions", newTx.id), newTx).catch(() => {});
-
-            botReplyText = `✅ บันทึกบัญชีสำเร็จ!\n\n📌 ประเภท: ${detectedDocType.badge}\n🏷️ หมวดหมู่: ${detected.category}\n💰 ยอดเงิน: ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${todayStr}\n🔢 รหัสอ้างอิง: ${refNo}\n\n🖼️ บันทึกเข้าสมุดบัญชีเรียบร้อยครับ`;
+            // Save to Firestore and send LINE reply in parallel
+            await Promise.allSettled([
+              setDoc(doc(db, "documents", newDoc.id), newDoc),
+              setDoc(doc(db, "transactions", newTx.id), newTx),
+              sendLineReply(replyToken, botReplyText, channelToken)
+            ]);
           } else {
             botReplyText = `รับทราบข้อความ: "${userText}" ครับ\n\n💡 คำสั่งด่วน:\n⚡ พิมพ์ยอดเงิน เช่น "200", "ค่าน้ำมัน 480", "7-11 350"\n⚡ พิมพ์ "สรุป" เพื่อดูภาพรวม\n⚡ แนบรูปสลิป/บิล เพื่อสแกนลงบัญชีอัตโนมัติ`;
+            await sendLineReply(replyToken, botReplyText, channelToken);
           }
-
-          // Reply immediately
-          await sendLineReply(replyToken, botReplyText, channelToken);
 
         } else if (message.type === "image" || message.type === "file") {
           // Handle both image and file uploads
@@ -470,12 +459,12 @@ export default async function handler(req, res) {
             }
           }
 
-          // 1. Reply to user on LINE immediately
-          await sendLineReply(replyToken, botReplyText, channelToken);
-
-          // 2. Non-blocking background save
-          setDoc(doc(db, "documents", newDoc.id), newDoc).catch(() => {});
-          setDoc(doc(db, "transactions", newTx.id), newTx).catch(() => {});
+          // Save to Firestore and send LINE reply concurrently
+          await Promise.allSettled([
+            setDoc(doc(db, "documents", newDoc.id), newDoc),
+            setDoc(doc(db, "transactions", newTx.id), newTx),
+            sendLineReply(replyToken, botReplyText, channelToken)
+          ]);
 
         } else {
           // Other message types (sticker, audio, location, file)
