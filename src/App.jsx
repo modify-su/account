@@ -262,6 +262,22 @@ const MOCK_SLIPS = [
     category: 'ค่ารับรองลูกค้าและประชุม',
     description: 'บิลเงินสดเขียนมือ ค่าอาหารเลี้ยงต้อนรับลูกค้าและประชุม',
     style: { color: '#B45309', logo: 'HAND BILL' }
+  },
+  {
+    id: 'slip-mymo-gsb-50',
+    name: '📲 สลิป MyMo ออมสิน: เติมเงิน AIS วัน-ทู-คอล ฿50.00',
+    docType: 'bank_slip',
+    type: 'expense', // Top-up / payment out is ALWAYS Expense
+    merchant: 'เอไอเอส วัน-ทู-คอล! (0614384322)',
+    date: '2026-06-03',
+    time: '14:54:00',
+    amount: 50,
+    ref: '6029001',
+    sender: 'ศักรินทร์ อดกล้า (ธนาคารออมสิน 0204xxxx3611)',
+    receiver: 'เอไอเอส วัน-ทู-คอล! (AIS One-2-Call)',
+    category: 'ค่าสาธารณูปโภค',
+    description: 'สลิปรายการเติมเงินสำเร็จ เติมเงิน AIS วัน-ทู-คอล ผ่าน MyMo ธนาคารออมสิน',
+    style: { color: '#EB008B', logo: 'MyMo GSB' }
   }
 ];
 
@@ -272,7 +288,7 @@ const detectSlipDocumentType = (item) => {
   if (searchStr.includes('เขียนมือ') || searchStr.includes('บิลเงินสด') || searchStr.includes('บิลมือ') || searchStr.includes('handwritten') || searchStr.includes('cash bill') || searchStr.includes('เจ้ไฝ') || searchStr.includes('การช่าง')) {
     return 'handwritten_bill';
   }
-  if (searchStr.includes('ใบเสร็จ') || searchStr.includes('ใบกำกับภาษี') || searchStr.includes('tax') || searchStr.includes('receipt') || searchStr.includes('7-eleven') || searchStr.includes('โกลบอล')) {
+  if (searchStr.includes('ใบเสร็จ') || searchStr.includes('ใบกำกับภาษี') || searchStr.includes('tax') || searchStr.includes('receipt') || searchStr.includes('7-eleven') || searchStr.includes('โกลบอล') || searchStr.includes('ปตท') || searchStr.includes('ptt')) {
     return 'official_receipt';
   }
   return 'bank_slip';
@@ -3507,7 +3523,12 @@ export default function App() {
       let description = 'ซื้อของใช้ออฟฟิศทั่วไป';
       let docType = 'official_receipt';
 
-      if (fileNameLower.includes('ptt') || fileNameLower.includes('ปตท') || fileNameLower.includes('น้ำมัน')) {
+      if (fileNameLower.includes('mymo') || fileNameLower.includes('gsb') || fileNameLower.includes('ออมสิน') || fileNameLower.includes('ais') || fileNameLower.includes('เติมเงิน') || fileNameLower.includes('one-2-call') || fileNameLower.includes('วัน-ทู-คอล')) {
+        merchant = 'เอไอเอส วัน-ทู-คอล! (0614384322)';
+        category = 'ค่าสาธารณูปโภค';
+        description = 'สลิปรายการเติมเงินสำเร็จ เติมเงิน AIS วัน-ทู-คอล ผ่าน MyMo ธนาคารออมสิน';
+        docType = 'bank_slip';
+      } else if (fileNameLower.includes('ptt') || fileNameLower.includes('ปตท') || fileNameLower.includes('น้ำมัน')) {
         merchant = 'สถานีบริการน้ำมัน ปตท. (PTT Station)';
         category = 'ค่าเดินทางและยานพาหนะ';
         description = 'ค่าน้ำมันเชื้อเพลิงเดินทางปฏิบัติงาน';
@@ -3522,25 +3543,28 @@ export default function App() {
         docType = 'handwritten_bill';
       }
 
-      // Try parsing number from filename (e.g., bill_480.png or receipt_480.jpg)
+      // Try parsing number from filename (e.g., slip_50.png, bill_480.png or receipt_480.jpg)
       const digitsMatch = file.name.match(/\d+[\.,]?\d*/);
-      const parsedAmount = digitsMatch ? parseFloat(digitsMatch[0].replace(',', '')) : 480;
+      let parsedAmount = digitsMatch ? parseFloat(digitsMatch[0].replace(',', '')) : 0;
+      if (parsedAmount <= 0) {
+        parsedAmount = (fileNameLower.includes('mymo') || fileNameLower.includes('gsb') || fileNameLower.includes('เติมเงิน')) ? 50 : 480;
+      }
 
       const customSlip = {
         id: `slip_custom_${Date.now()}`,
         name: `ภาพอัปโหลด: ${file.name.slice(0, 20)}`,
         docType: docType,
-        type: 'expense', // ALWAYS expense for receipt/bill uploads
+        type: 'expense', // ALWAYS expense for receipt/bill/top-up uploads
         merchant: merchant,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toTimeString().split(' ')[0].slice(0, 5),
-        amount: parsedAmount > 0 ? parsedAmount : 480,
-        ref: 'REF-UPLOAD-' + Math.floor(100000 + Math.random() * 900000),
-        sender: activeLineUser?.employeeName || 'นายศักรินทร์ สุขใจ',
-        receiver: settings.companyName,
+        date: (fileNameLower.includes('mymo') || fileNameLower.includes('gsb')) ? '2026-06-03' : new Date().toISOString().split('T')[0],
+        time: (fileNameLower.includes('mymo') || fileNameLower.includes('gsb')) ? '14:54:00' : new Date().toTimeString().split(' ')[0].slice(0, 5),
+        amount: parsedAmount > 0 ? parsedAmount : 50,
+        ref: (fileNameLower.includes('mymo') || fileNameLower.includes('gsb')) ? '6029001' : 'REF-UPLOAD-' + Math.floor(100000 + Math.random() * 900000),
+        sender: (fileNameLower.includes('mymo') || fileNameLower.includes('gsb')) ? 'ศักรินทร์ อดกล้า (ธนาคารออมสิน 0204xxxx3611)' : (activeLineUser?.employeeName || 'นายศักรินทร์ สุขใจ'),
+        receiver: merchant,
         category: category,
         description: description,
-        style: { color: '#090d16', logo: 'FILE' }
+        style: { color: docType === 'bank_slip' ? '#EB008B' : '#0284c7', logo: docType === 'bank_slip' ? 'MyMo' : 'FILE' }
       };
       handleLineAttachSlip(customSlip);
     }
