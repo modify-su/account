@@ -500,6 +500,45 @@ export default function App() {
   // Document Hub Archive State
   const [documents, setDocuments] = useState(() => safeJSONParse('flowledger_docs_v3', []));
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [docZoomLevel, setDocZoomLevel] = useState(1);
+  const [docRotation, setDocRotation] = useState(0);
+  const [docPanPosition, setDocPanPosition] = useState({ x: 0, y: 0 });
+  const [isDocDragging, setIsDocDragging] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+
+  const handleDocZoomIn = () => setDocZoomLevel(prev => Math.min(4, Math.round((prev + 0.25) * 100) / 100));
+  const handleDocZoomOut = () => setDocZoomLevel(prev => Math.max(0.5, Math.round((prev - 0.25) * 100) / 100));
+  const handleDocZoomReset = () => {
+    setDocZoomLevel(1);
+    setDocRotation(0);
+    setDocPanPosition({ x: 0, y: 0 });
+  };
+  const handleDocRotate = () => setDocRotation(prev => (prev + 90) % 360);
+
+  const handleDocMouseDown = (e) => {
+    if (docZoomLevel <= 1) return;
+    setIsDocDragging(true);
+    setDragStartPos({ x: e.clientX - docPanPosition.x, y: e.clientY - docPanPosition.y });
+  };
+
+  const handleDocMouseMove = (e) => {
+    if (!isDocDragging) return;
+    setDocPanPosition({
+      x: e.clientX - dragStartPos.x,
+      y: e.clientY - dragStartPos.y
+    });
+  };
+
+  const handleDocMouseUp = () => setIsDocDragging(false);
+
+  const handleDocWheel = (e) => {
+    if (e.deltaY < 0) {
+      setDocZoomLevel(prev => Math.min(4, Math.round((prev + 0.2) * 100) / 100));
+    } else {
+      setDocZoomLevel(prev => Math.max(0.5, Math.round((prev - 0.2) * 100) / 100));
+    }
+  };
+
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [docFilterType, setDocFilterType] = useState('all');
   const [editingDoc, setEditingDoc] = useState(null);
@@ -7921,27 +7960,174 @@ export default function App() {
         </div>
       )}
 
-      {/* ================= SLIP IMAGE & DOCUMENT PREVIEW MODAL ================= */}
+      {/* ================= SLIP IMAGE & DOCUMENT PREVIEW MODAL WITH FULL ZOOM & PAN ================= */}
       {selectedDoc && (
-        <div className="modal-overlay" onClick={() => setSelectedDoc(null)}>
-          <div className="modal-content" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>📄 รายละเอียดไฟล์เอกสาร / สลิป (Document Viewer)</h2>
-              <button className="modal-close-btn" onClick={() => setSelectedDoc(null)}>✕</button>
+        <div className="modal-overlay" onClick={() => { setSelectedDoc(null); handleDocZoomReset(); }}>
+          <div className="modal-content" style={{ maxWidth: '780px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.15rem' }}>📄 รายละเอียดไฟล์เอกสาร / สลิป (Document Viewer)</h2>
+              </div>
+              <button className="modal-close-btn" onClick={() => { setSelectedDoc(null); handleDocZoomReset(); }}>✕</button>
             </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', alignItems: 'center' }}>
               
               {selectedDoc.imageUrl ? (
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: '100%', maxHeight: '450px', backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center' }}>
+                  
+                  {/* Zoom & Pan Interactive Toolbar */}
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    backgroundColor: 'var(--bg-card-hover)',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '30px',
+                    border: '1px solid var(--border-color)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleDocZoomIn}
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', borderRadius: '20px' }}
+                      title="ซูมขยายเข้า (+25%)"
+                    >
+                      🔍➕ ซูมเข้า
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleDocZoomOut}
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', borderRadius: '20px' }}
+                      title="ย่อซูมออก (-25%)"
+                    >
+                      🔍➖ ซูมออก
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleDocRotate}
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', borderRadius: '20px' }}
+                      title="หมุนภาพ 90 องศา"
+                    >
+                      🔄 หมุนภาพ
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleDocZoomReset}
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', borderRadius: '20px' }}
+                      title="รีเซ็ตขนาดปกติ 100%"
+                    >
+                      ↺ คืนค่าเดิม
+                    </button>
+
+                    <div style={{
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--primary)',
+                      color: '#ffffff',
+                      fontSize: '0.78rem',
+                      fontWeight: 'bold',
+                      minWidth: '55px',
+                      textAlign: 'center'
+                    }}>
+                      {Math.round(docZoomLevel * 100)}%
+                    </div>
+                  </div>
+
+                  {/* Zoomable & Pannable Image Viewport Container */}
+                  <div 
+                    style={{ 
+                      width: '100%', 
+                      height: '460px', 
+                      backgroundColor: '#090d16', 
+                      borderRadius: '10px', 
+                      border: '1px solid var(--border-color)', 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      userSelect: 'none',
+                      cursor: docZoomLevel > 1 ? (isDocDragging ? 'grabbing' : 'grab') : 'default'
+                    }}
+                    onWheel={handleDocWheel}
+                    onMouseDown={handleDocMouseDown}
+                    onMouseMove={handleDocMouseMove}
+                    onMouseUp={handleDocMouseUp}
+                    onMouseLeave={handleDocMouseUp}
+                  >
                     <img 
                       src={selectedDoc.imageUrl} 
                       alt="สลิปโอนเงินจริง" 
-                      style={{ maxWidth: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '6px' }}
+                      draggable={false}
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '100%', 
+                        objectFit: 'contain', 
+                        borderRadius: '6px',
+                        transform: `translate(${docPanPosition.x}px, ${docPanPosition.y}px) scale(${docZoomLevel}) rotate(${docRotation}deg)`,
+                        transformOrigin: 'center center',
+                        transition: isDocDragging ? 'none' : 'transform 0.15s ease-out',
+                        pointerEvents: 'none'
+                      }}
                     />
+
+                    {/* Hint overlay for zooming and dragging */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      backgroundColor: 'rgba(0,0,0,0.7)',
+                      backdropFilter: 'blur(4px)',
+                      color: '#e2e8f0',
+                      fontSize: '0.68rem',
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      pointerEvents: 'none',
+                      border: '1px solid rgba(255,255,255,0.15)'
+                    }}>
+                      💡 เลื่อนลูกกลิ้งเมาส์ (Scroll Wheel) ซูมเข้า-ออก หรือคลิกลาก (Click & Drag) เพื่อเลื่อนดูรายละเอียด
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                    <strong>หมวดหมู่:</strong> {selectedDoc.category || 'ทั่วไป'} | <strong>ยอดเงิน:</strong> ฿{selectedDoc.amount?.toLocaleString()} | <strong>Ref:</strong> {selectedDoc.ref}
+
+                  {/* Summary Bar */}
+                  <div style={{ 
+                    width: '100%', 
+                    backgroundColor: 'var(--bg-card-hover)', 
+                    padding: '0.6rem 1rem', 
+                    borderRadius: '8px', 
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.85rem', 
+                    color: 'var(--text-main)', 
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>หมวดหมู่: </span>
+                      <strong>{selectedDoc.category || 'ทั่วไป'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>ยอดเงิน: </span>
+                      <strong style={{ color: selectedDoc.type === 'receipt' ? 'var(--success)' : 'var(--danger)', fontSize: '1rem' }}>
+                        ฿{selectedDoc.amount?.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>Ref: </span>
+                      <strong style={{ fontFamily: 'monospace' }}>{selectedDoc.ref}</strong>
+                    </div>
                   </div>
                 </div>
               ) : selectedDoc.attachmentUrl ? (
@@ -7987,8 +8173,8 @@ export default function App() {
                 </div>
               ) : (
                 <div style={{ 
-                  width: '240px', 
-                  height: '300px', 
+                  width: '260px', 
+                  height: '320px', 
                   backgroundColor: '#ffffff', 
                   color: '#333333', 
                   borderRadius: '8px', 
@@ -8019,11 +8205,11 @@ export default function App() {
                 </div>
               )}
 
-              <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+              <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-primary" onClick={() => handlePrintDocInvoice(selectedDoc)} style={{ flexGrow: 1, justifyContent: 'center' }}>
                   <Printer size={16} /> พิมพ์รายงาน PDF
                 </button>
-                <button className="btn btn-secondary" onClick={() => setSelectedDoc(null)} style={{ flexGrow: 1, justifyContent: 'center' }}>
+                <button className="btn btn-secondary" onClick={() => { setSelectedDoc(null); handleDocZoomReset(); }} style={{ flexGrow: 1, justifyContent: 'center' }}>
                   ปิดหน้าต่าง
                 </button>
               </div>
