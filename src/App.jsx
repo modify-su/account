@@ -48,7 +48,9 @@ import {
   Download,
   File,
   MapPin,
-  User
+  User,
+  FolderPlus,
+  Edit3
 } from 'lucide-react';
 
 import { 
