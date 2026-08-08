@@ -2121,13 +2121,21 @@ export default function App() {
       amount: docItem.amount || 0,
       sender: docItem.sender || '',
       details: docItem.details || '',
-      type: docItem.type || 'expense'
+      type: docItem.type || 'expense',
+      docType: docItem.docType || (docItem.type === 'receipt' ? 'bank_slip' : 'tax_invoice')
     });
   };
 
   const handleSaveEditedDoc = async (e) => {
     e.preventDefault();
     if (!editingDoc) return;
+
+    let docTypeLabel = '📲 สลิปโอนเงินธนาคาร';
+    if (docForm.docType === 'tax_invoice') {
+      docTypeLabel = '🧾 ใบเสร็จสินค้า / ใบกำกับภาษี';
+    } else if (docForm.docType === 'official_receipt') {
+      docTypeLabel = '📄 ใบเสร็จรับเงิน / บิลชำระเงิน';
+    }
 
     const updatedDoc = {
       ...editingDoc,
@@ -2136,7 +2144,9 @@ export default function App() {
       amount: parseFloat(docForm.amount) || 0,
       sender: docForm.sender,
       details: docForm.details,
-      type: docForm.type
+      type: docForm.type,
+      docType: docForm.docType || 'bank_slip',
+      docTypeLabel: docTypeLabel
     };
 
     // 1. Update documents state
@@ -3741,8 +3751,11 @@ export default function App() {
     return (documents || []).filter(doc => {
       if (!doc) return false;
       if (docFilterType !== 'all') {
+        if (docFilterType === 'bank_slip' && doc.docType !== 'bank_slip' && (doc.docType || doc.type === 'tax_invoice')) return false;
+        if (docFilterType === 'tax_invoice' && doc.docType !== 'tax_invoice') return false;
+        if (docFilterType === 'official_receipt' && doc.docType !== 'official_receipt') return false;
         if (docFilterType === 'income' && doc.type !== 'receipt') return false;
-        if (docFilterType === 'expense' && doc.type !== 'tax_invoice') return false;
+        if (docFilterType === 'expense' && doc.type !== 'tax_invoice' && doc.type !== 'expense') return false;
       }
       if (docSearchQuery) {
         const q = docSearchQuery.toLowerCase();
@@ -3750,7 +3763,9 @@ export default function App() {
           (doc.title && doc.title.toLowerCase().includes(q)) ||
           (doc.merchant && doc.merchant.toLowerCase().includes(q)) ||
           (doc.ref && doc.ref.toLowerCase().includes(q)) ||
-          (doc.sender && doc.sender.toLowerCase().includes(q))
+          (doc.sender && doc.sender.toLowerCase().includes(q)) ||
+          (doc.category && doc.category.toLowerCase().includes(q)) ||
+          (doc.docTypeLabel && doc.docTypeLabel.toLowerCase().includes(q))
         );
       }
       return true;
@@ -5968,7 +5983,7 @@ export default function App() {
                   <input 
                     type="text" 
                     className="form-input" 
-                    placeholder="ค้นหาชื่อ, เลขที่บิล, หมวดหมู่..."
+                    placeholder="ค้นหาชื่อ, เลขที่บิล, หมวดหมู่, สลิป..."
                     value={docSearchQuery}
                     onChange={(e) => setDocSearchQuery(e.target.value)}
                     style={{ width: '250px', padding: '0.45rem 1rem' }}
@@ -5981,11 +5996,12 @@ export default function App() {
                     className="form-select" 
                     value={docFilterType}
                     onChange={(e) => setDocFilterType(e.target.value)}
-                    style={{ width: '160px', padding: '0.45rem' }}
+                    style={{ width: '230px', padding: '0.45rem' }}
                   >
-                    <option value="all">ทั้งหมด</option>
-                    <option value="income">ใบเสร็จรับเงิน (รายรับ)</option>
-                    <option value="expense">ใบกำกับภาษี (รายจ่าย)</option>
+                    <option value="all">🌟 เอกสารทั้งหมด ({documents.length})</option>
+                    <option value="bank_slip">📲 สลิปโอนเงินธนาคาร ({documents.filter(d => d.docType === 'bank_slip' || (!d.docType && d.type !== 'tax_invoice')).length})</option>
+                    <option value="tax_invoice">🧾 ใบเสร็จสินค้า / ใบกำกับภาษี ({documents.filter(d => d.docType === 'tax_invoice').length})</option>
+                    <option value="official_receipt">📄 ใบเสร็จชำระเงิน / บิลเงินสด ({documents.filter(d => d.docType === 'official_receipt').length})</option>
                   </select>
                 </div>
 
@@ -6012,9 +6028,19 @@ export default function App() {
                   <div key={doc.id} className="glass-card doc-hub-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.75rem' }}>
                       <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', margin: 0, lineHeight: '1.4', flexGrow: 1 }}>{doc.title}</h3>
-                      <span className={`badge badge-${doc.type === 'receipt' ? 'income' : 'expense'}`} style={{ flexShrink: 0 }}>
-                        {doc.type === 'receipt' ? 'ใบเสร็จรับเงิน' : 'ใบกำกับภาษี'}
-                      </span>
+                      {doc.docType === 'tax_invoice' ? (
+                        <span className="badge" style={{ backgroundColor: 'rgba(234, 88, 12, 0.15)', color: '#ea580c', border: '1px solid rgba(234, 88, 12, 0.3)', flexShrink: 0, fontSize: '0.72rem' }}>
+                          🧾 ใบเสร็จสินค้า/ใบกำกับภาษี
+                        </span>
+                      ) : doc.docType === 'official_receipt' ? (
+                        <span className="badge" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', flexShrink: 0, fontSize: '0.72rem' }}>
+                          📄 ใบเสร็จรับเงิน/บิลชำระเงิน
+                        </span>
+                      ) : (
+                        <span className={`badge badge-${doc.type === 'receipt' ? 'income' : 'expense'}`} style={{ flexShrink: 0, fontSize: '0.72rem' }}>
+                          {doc.docTypeLabel || '📲 สลิปโอนเงินธนาคาร'}
+                        </span>
+                      )}
                     </div>
 
                     {doc.imageUrl && (
@@ -8468,27 +8494,40 @@ export default function App() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">ประเภทเอกสาร</label>
+                    <label className="form-label">ประเภทเอกสาร (Document Type)</label>
+                    <select 
+                      className="form-select"
+                      value={docForm.docType}
+                      onChange={(e) => setDocForm(prev => ({ ...prev, docType: e.target.value }))}
+                    >
+                      <option value="bank_slip">📲 สลิปโอนเงินธนาคาร (Bank Slip)</option>
+                      <option value="tax_invoice">🧾 ใบเสร็จสินค้า / ใบกำกับภาษี (Tax Invoice)</option>
+                      <option value="official_receipt">📄 ใบเสร็จชำระเงิน / บิลเงินสด (Payment Receipt)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">สถานะบัญชี</label>
                     <select 
                       className="form-select"
                       value={docForm.type}
                       onChange={(e) => setDocForm(prev => ({ ...prev, type: e.target.value }))}
                     >
-                      <option value="expense">ใบกำกับภาษี / รายจ่าย</option>
-                      <option value="receipt">ใบเสร็จรับเงิน / รายรับ</option>
+                      <option value="expense">🔴 รายจ่าย / สำรองจ่าย</option>
+                      <option value="receipt">🟢 รายรับ (เงินเข้า)</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">จำนวนเงิน (THB)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      step="0.01"
-                      required
-                      value={docForm.amount}
-                      onChange={(e) => setDocForm(prev => ({ ...prev, amount: e.target.value }))}
-                    />
-                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">จำนวนเงิน (THB)</label>
+                  <input 
+                    type="number" 
+                    className="form-input" 
+                    step="0.01"
+                    required
+                    value={docForm.amount}
+                    onChange={(e) => setDocForm(prev => ({ ...prev, amount: e.target.value }))}
+                  />
                 </div>
 
                 <div className="form-group">

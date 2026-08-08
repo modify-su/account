@@ -38,60 +38,122 @@ function formatSlipDate(rawDate) {
   return new Date().toISOString().split("T")[0];
 }
 
-function detectCategory(text, defaultIsIncome) {
-  if (!text) return { category: defaultIsIncome ? "รายได้จากการขาย" : "ค่าใช้จ่ายทั่วไป", isIncome: defaultIsIncome };
-  
-  const raw = String(text).toLowerCase();
-  
-  // 1. ค่าเดินทางและยานพาหนะ
-  if (raw.includes("เดินทาง") || raw.includes("เติมน้ำมัน") || raw.includes("น้ำมัน") || raw.includes("ปตท") || raw.includes("ptt") || raw.includes("พาหนะ") || raw.includes("ซ่อมรถ") || raw.includes("รถ") || raw.includes("ทางด่วน") || raw.includes("fuel") || raw.includes("gas")) {
-    return { category: "ค่าเดินทางและยานพาหนะ", isIncome: false };
+function detectDocumentType({ captionText, merchant, sender, receiver, slipMemo }) {
+  const combined = `${captionText || ''} ${merchant || ''} ${sender || ''} ${receiver || ''} ${slipMemo || ''}`.toLowerCase();
+
+  const hasTaxGoodsKeyword = combined.includes("ใบกำกับภาษี") || 
+                             combined.includes("tax invoice") || 
+                             combined.includes("ใบเสร็จอย่างย่อ") || 
+                             combined.includes("ใบเสร็จสินค้า") || 
+                             combined.includes("สินค้า") || 
+                             combined.includes("7-eleven") || 
+                             combined.includes("7-11") || 
+                             combined.includes("เซเว่น") || 
+                             combined.includes("แม็คโคร") || 
+                             combined.includes("makro") || 
+                             combined.includes("โลตัส") || 
+                             combined.includes("lotus") || 
+                             combined.includes("big c") || 
+                             combined.includes("บิ๊กซี") || 
+                             combined.includes("โกลบอล") || 
+                             combined.includes("global") || 
+                             combined.includes("ไทวัสดุ") || 
+                             combined.includes("homepro") || 
+                             combined.includes("โฮมโปร") || 
+                             combined.includes("dohome") || 
+                             combined.includes("ดูโฮม") || 
+                             combined.includes("ปตท") || 
+                             combined.includes("ptt") || 
+                             combined.includes("น้ำมัน") || 
+                             combined.includes("vat") || 
+                             combined.includes("pos") ||
+                             combined.includes("cashier") ||
+                             combined.includes("ปั๊ม");
+
+  const hasPaymentBillKeyword = combined.includes("ใบเสร็จรับเงิน") || 
+                                combined.includes("ใบเสร็จชำระ") || 
+                                combined.includes("บิลเงินสด") || 
+                                combined.includes("บิลชำระ") || 
+                                combined.includes("receipt") || 
+                                combined.includes("cash receipt") || 
+                                combined.includes("ais") || 
+                                combined.includes("true") || 
+                                combined.includes("dtac") || 
+                                combined.includes("tot") || 
+                                combined.includes("nt") || 
+                                combined.includes("ไฟฟ้า") || 
+                                combined.includes("ประปา") || 
+                                combined.includes("ค่าเช่า") || 
+                                combined.includes("ค่าบริการ") || 
+                                combined.includes("อินเทอร์เน็ต") || 
+                                combined.includes("ค่าเน็ต") || 
+                                combined.includes("บิลเขียนมือ") ||
+                                combined.includes("ค่าโทรศัพท์");
+
+  const hasBankSlipKeyword = combined.includes("สลิป") || 
+                             combined.includes("slip") || 
+                             combined.includes("โอนเงิน") || 
+                             combined.includes("โอนสำเร็จ") || 
+                             combined.includes("kplus") || 
+                             combined.includes("kbank") || 
+                             combined.includes("scb") || 
+                             combined.includes("mymo") || 
+                             combined.includes("gsb") || 
+                             combined.includes("krungthai") || 
+                             combined.includes("promptpay") || 
+                             combined.includes("พร้อมเพย์");
+
+  // Priority 1: Goods Receipt / Tax Invoice
+  if (hasTaxGoodsKeyword && !hasBankSlipKeyword) {
+    return {
+      docType: "tax_invoice",
+      docTypeName: "ใบเสร็จสินค้า / ใบกำกับภาษี",
+      icon: "🧾",
+      badge: "🧾 ใบเสร็จสินค้า/ใบกำกับภาษี",
+      categoryHint: "ค่าอุปกรณ์สำนักงาน"
+    };
   }
 
-  // 2. ค่าอาหารและเครื่องดื่ม
-  if (raw.includes("อาหาร") || raw.includes("ข้าวเที่ยง") || raw.includes("ข้าว") || raw.includes("กาแฟ") || raw.includes("เครื่องดื่ม") || raw.includes("กิน") || raw.includes("7-11") || raw.includes("เซเว่น") || raw.includes("food") || raw.includes("coffee")) {
-    return { category: "ค่าอาหารและเครื่องดื่ม", isIncome: false };
+  // Priority 2: Payment Receipt / Cash Bill
+  if (hasPaymentBillKeyword && !hasBankSlipKeyword) {
+    return {
+      docType: "official_receipt",
+      docTypeName: "ใบเสร็จชำระเงิน / บิลเงินสด",
+      icon: "📄",
+      badge: "📄 ใบเสร็จรับเงิน/บิลชำระเงิน",
+      categoryHint: "ค่าสาธารณูปโภค"
+    };
   }
 
-  // 3. ค่าอุปกรณ์สำนักงาน
-  if (raw.includes("อุปกรณ์") || raw.includes("ของเข้าออฟฟิศ") || raw.includes("ซื้อของ") || raw.includes("โกลบอล") || raw.includes("แม็คโคร") || raw.includes("กระดาษ") || raw.includes("หมึก") || raw.includes("ของใช้") || raw.includes("office")) {
-    return { category: "ค่าอุปกรณ์สำนักงาน", isIncome: false };
+  // Priority 3: Fallback checks
+  if (hasTaxGoodsKeyword) {
+    return {
+      docType: "tax_invoice",
+      docTypeName: "ใบเสร็จสินค้า / ใบกำกับภาษี",
+      icon: "🧾",
+      badge: "🧾 ใบเสร็จสินค้า/ใบกำกับภาษี",
+      categoryHint: null
+    };
   }
 
-  // 4. ค่าอินเทอร์เน็ตและโทรศัพท์ / สาธารณูปโภค
-  if (raw.includes("ais") || raw.includes("one-2-call") || raw.includes("วัน-ทู-คอล") || raw.includes("เติมเงิน") || raw.includes("เน็ต") || raw.includes("โทรศัพท์") || raw.includes("มือถือ") || raw.includes("true") || raw.includes("dtac")) {
-    return { category: "ค่าสาธารณูปโภค", isIncome: false };
+  if (hasPaymentBillKeyword) {
+    return {
+      docType: "official_receipt",
+      docTypeName: "ใบเสร็จชำระเงิน / บิลเงินสด",
+      icon: "📄",
+      badge: "📄 ใบเสร็จรับเงิน/บิลชำระเงิน",
+      categoryHint: null
+    };
   }
 
-  // 5. ค่าสาธารณูปโภค (น้ำ, ไฟ)
-  if (raw.includes("ไฟ") || raw.includes("น้ำ") || raw.includes("สาธารณูปโภค") || raw.includes("ค่าน้ำ") || raw.includes("ค่าไฟ") || raw.includes("utility")) {
-    return { category: "ค่าสาธารณูปโภค", isIncome: false };
-  }
-
-  // 6. ค่าซ่อมแซมและบำรุงรักษา
-  if (raw.includes("ซ่อม") || raw.includes("บำรุง") || raw.includes("ช่าง") || raw.includes("repair")) {
-    return { category: "ค่าซ่อมแซมและบำรุงรักษา", isIncome: false };
-  }
-
-  // 7. ค่าโฆษณาและการตลาด
-  if (raw.includes("โฆษณา") || raw.includes("การตลาด") || raw.includes("ads") || raw.includes("marketing")) {
-    return { category: "ค่าโฆษณาและการตลาด", isIncome: false };
-  }
-
-  // 8. รายได้จากการขาย / บริการ
-  if (raw.includes("ขาย") || raw.includes("ยอดขาย") || raw.includes("ลูกค้าโอน") || raw.includes("sale")) {
-    return { category: "รายได้จากการขาย", isIncome: true };
-  }
-  if (raw.includes("บริการ") || raw.includes("ค่าบริการ") || raw.includes("service")) {
-    return { category: "รายได้จากการบริการ", isIncome: true };
-  }
-
-  // 9. ค่าใช้จ่ายทั่วไป fallback
-  if (raw.includes("จ่าย") || raw.includes("ค่า") || raw.includes("ชำระ") || raw.includes("ออก") || raw.includes("expense")) {
-    return { category: "ค่าใช้จ่ายทั่วไป", isIncome: false };
-  }
-
-  return { category: defaultIsIncome ? "รายได้จากการขาย" : "สำรองจ่าย", isIncome: defaultIsIncome };
+  // Default: Bank Transfer Slip
+  return {
+    docType: "bank_slip",
+    docTypeName: "สลิปโอนเงินธนาคาร",
+    icon: "📲",
+    badge: "📲 สลิปโอนเงินธนาคาร",
+    categoryHint: null
+  };
 }
 
 export default async function handler(req, res) {
@@ -282,6 +344,15 @@ export default async function handler(req, res) {
             }
           }
 
+          // DETECT DOCUMENT TYPE: (1) Goods Receipt / Tax Invoice, (2) Payment Receipt / Bill, (3) Bank Slip
+          const docTypeInfo = detectDocumentType({
+            captionText,
+            merchant: slipMerchant,
+            sender: slipSender,
+            receiver: slipReceiver,
+            slipMemo
+          });
+
           // STRICT CLASSIFICATION RULE:
           // Check if sender/receiver is "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด"
           const sName = (slipSender || "").toLowerCase().trim();
@@ -308,6 +379,26 @@ export default async function handler(req, res) {
             category = "สำรองจ่าย";
           }
 
+          // Compute Document Title based on exact Document Type
+          let docTitle = "";
+          let docTypeLabel = "";
+          if (docTypeInfo.docType === "tax_invoice") {
+            docTypeLabel = isAdvancePayment ? "💳 ใบเสร็จสินค้า (สำรองจ่าย)" : "🧾 ใบเสร็จสินค้า / ใบกำกับภาษี";
+            docTitle = isAdvancePayment 
+              ? `[ใบเสร็จสินค้า/สำรองจ่าย] ${slipReceiver || slipMerchant}`
+              : `[ใบเสร็จสินค้า/ใบกำกับภาษี] ${slipReceiver || slipMerchant}`;
+          } else if (docTypeInfo.docType === "official_receipt") {
+            docTypeLabel = isAdvancePayment ? "💳 บิลชำระเงิน (สำรองจ่าย)" : "📄 ใบเสร็จรับเงิน / บิลชำระเงิน";
+            docTitle = isAdvancePayment 
+              ? `[บิลชำระเงิน/สำรองจ่าย] ${slipReceiver || slipMerchant}`
+              : `[ใบเสร็จรับเงิน/บิลชำระเงิน] ${slipReceiver || slipMerchant}`;
+          } else {
+            docTypeLabel = isAdvancePayment ? "💳 สลิปสำรองจ่าย" : (isIncome ? "📲 สลิปเงินเข้า" : "📲 สลิปโอนเงิน");
+            docTitle = isAdvancePayment 
+              ? `[สลิปสำรองจ่าย: ${slipSender}] ${slipReceiver || slipMerchant}`
+              : (isIncome ? `[สลิปเงินเข้า] จาก ${slipSender}` : `[สลิปโอนเงิน] ชำระ ${slipReceiver || slipMerchant}`);
+          }
+
           const docId = `doc-${Date.now()}`;
           let descMemo = slipMemo ? ` (ความจำ: ${slipMemo})` : (captionText ? ` (${captionText})` : "");
           
@@ -316,11 +407,9 @@ export default async function handler(req, res) {
             date: slipDate,
             time: slipTime,
             type: isIncome ? "receipt" : "tax_invoice",
-            docType: "bank_slip",
-            docTypeLabel: isAdvancePayment ? "💳 สลิปสำรองจ่าย" : (isIncome ? "📲 สลิปเงินเข้า" : "📲 สลิปโอนเงิน"),
-            title: isAdvancePayment 
-              ? `[สำรองจ่าย: ${slipSender}] ${slipReceiver || slipMerchant}`
-              : (isIncome ? `[รายรับ] จาก ${slipSender}` : `[รายจ่าย] ชำระ ${slipReceiver}`),
+            docType: docTypeInfo.docType,
+            docTypeLabel: docTypeLabel,
+            title: docTitle,
             ref: slipRef,
             amount: slipAmount,
             merchant: slipReceiver || slipMerchant,
@@ -331,7 +420,7 @@ export default async function handler(req, res) {
             status: "archived",
             details: isAdvancePayment
               ? `สำรองจ่ายโดย [${slipSender}] ชำระให้ ${slipReceiver || slipMerchant} (รอตั้งเบิกคืน)`
-              : (isIncome ? `รายรับโอนเงินเข้าจาก [${slipSender}]` : `รายจ่ายบริษัท ชำระให้ [${slipReceiver}]`)
+              : (isIncome ? `รายรับเข้าบัญชีจาก [${slipSender}]` : `รายจ่ายบริษัท ชำระให้ [${slipReceiver || slipMerchant}]`)
           };
 
           const newTx = {
@@ -342,7 +431,7 @@ export default async function handler(req, res) {
             amount: slipAmount,
             description: isAdvancePayment 
               ? `[สำรองจ่ายโดย ${slipSender}] ${slipReceiver || slipMerchant}${descMemo}`
-              : (isIncome ? `[รายรับ: ${category}] จาก ${slipSender}${descMemo}` : `[รายจ่าย: ${category}] ให้ ${slipReceiver}${descMemo}`),
+              : (isIncome ? `[รายรับ: ${category}] จาก ${slipSender}${descMemo}` : `[รายจ่าย: ${category}] ให้ ${slipReceiver || slipMerchant}${descMemo}`),
             ref: slipRef,
             imageUrl: base64Image
           };
@@ -350,12 +439,21 @@ export default async function handler(req, res) {
           let memoLine = slipMemo ? `\n📝 บันทึกความจำ: ${slipMemo}` : (captionText ? `\n📝 บันทึกความจำ: ${captionText}` : "");
           let botReplyText = "";
           
-          if (isAdvancePayment) {
-            botReplyText = `✅ ตรวจสอบสลิปสำเร็จ!\n\n📌 ประเภท: 💳 สำรองจ่าย (Advance Payment)\n📂 หมวดหมู่: สำรองจ่าย (รอตั้งเบิกคืน)\n👤 ผู้โอน/ผู้ชำระ: ${slipSender}\n🏢 ร้านค้า/ผู้รับเงิน: ${slipReceiver || slipMerchant}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n📌 แจ้งเตือนสำรองจ่าย: ตรวจพบชื่อผู้โอนคือ [${slipSender}] (ไม่ใช่บัญชีหลัก "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด") ระบบได้ระบุเป็น [สำรองจ่าย] และบันทึกเข้าสมุดบัญชีเพื่อรอตั้งเบิกเรียบร้อยครับ`;
-          } else if (isIncome) {
-            botReplyText = `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: 🟢 รายรับ (เงินเข้า)\n🏷️ หมวดหมู่: ${category}${memoLine}\n👤 ผู้โอน: ${slipSender}\n🏢 ผู้รับเงิน: ${slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+          if (docTypeInfo.docType === "tax_invoice") {
+            // GOODS RECEIPT / TAX INVOICE
+            botReplyText = `✅ ตรวจสอบ [ใบเสร็จสินค้า / ใบกำกับภาษี] สำเร็จ!\n\n📌 ประเภทเอกสาร: 🧾 ใบเสร็จสินค้า / ใบกำกับภาษี (Tax Invoice)\n📂 สถานะบันทึก: ${isAdvancePayment ? '💳 สำรองจ่าย (รอตั้งเบิกคืน)' : '🔴 รายจ่ายบริษัท'}\n🏷️ หมวดหมู่บัญชี: ${category}${memoLine}\n🏢 ร้านค้า/ผู้ออกบิล: ${slipReceiver || slipMerchant}\n👤 ผู้ชำระเงิน: ${slipSender}\n💰 ยอดเงินสุทธิ: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่เอกสาร: ${slipDate}\n🔢 เลขที่บิล/Ref: ${slipRef}\n\n🖼️ จัดเก็บเข้าคลังเอกสาร Document Hub และบันทึกสมุดบัญชีเรียบร้อยครับ`;
+          } else if (docTypeInfo.docType === "official_receipt") {
+            // PAYMENT RECEIPT / SERVICE BILL
+            botReplyText = `✅ ตรวจสอบ [ใบเสร็จชำระเงิน / บิลเงินสด] สำเร็จ!\n\n📌 ประเภทเอกสาร: 📄 ใบเสร็จรับเงิน / บิลชำระเงิน (Official Receipt / Bill)\n📂 สถานะบันทึก: ${isAdvancePayment ? '💳 สำรองจ่าย (รอตั้งเบิกคืน)' : '🔴 รายจ่ายบริษัท'}\n🏷️ หมวดหมู่บัญชี: ${category}${memoLine}\n🏢 หน่วยงาน/ผู้รับเงิน: ${slipReceiver || slipMerchant}\n👤 ผู้ชำระเงิน: ${slipSender}\n💰 ยอดเงินรวม: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่เอกสาร: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ จัดเก็บเข้าคลังเอกสาร Document Hub และบันทึกสมุดบัญชีเรียบร้อยครับ`;
           } else {
-            botReplyText = `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: 🔴 รายจ่าย (เงินออก)\n🏷️ หมวดหมู่: ${category}${memoLine}\n👤 บัญชีต้นทาง: ${slipSender}\n🏢 ผู้รับเงิน: ${slipReceiver || slipMerchant}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+            // BANK TRANSFER SLIP
+            if (isAdvancePayment) {
+              botReplyText = `✅ ตรวจสอบ [สลิปโอนเงินธนาคาร] สำเร็จ!\n\n📌 ประเภทเอกสาร: 📲 สลิปโอนเงินธนาคาร (Bank Transfer Slip)\n📂 สถานะบันทึก: 💳 สำรองจ่าย (Advance Payment / รอตั้งเบิก)\n🏷️ หมวดหมู่บัญชี: สำรองจ่าย${memoLine}\n👤 บัญชีผู้โอน: ${slipSender}\n🏢 บัญชีผู้รับเงิน: ${slipReceiver || slipMerchant}\n💰 ยอดเงินโอน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่โอน: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n📌 แจ้งเตือนสำรองจ่าย: ตรวจพบผู้โอนไม่ใช่บัญชีบริษัท ระบบจึงบันทึกเป็น [สำรองจ่าย] และจัดเก็บเข้าคลังเอกสารเรียบร้อยครับ`;
+            } else if (isIncome) {
+              botReplyText = `✅ ตรวจสอบ [สลิปโอนเงินธนาคาร] สำเร็จ!\n\n📌 ประเภทเอกสาร: 📲 สลิปโอนเงินธนาคาร (Bank Transfer Slip)\n📂 สถานะบันทึก: 🟢 รายรับ (เงินเข้าบัญชีบริษัท)\n🏷️ หมวดหมู่บัญชี: ${category}${memoLine}\n👤 บัญชีผู้โอน: ${slipSender}\n🏢 บัญชีผู้รับเงิน: ${slipReceiver}\n💰 ยอดเงินโอน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่โอน: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+            } else {
+              botReplyText = `✅ ตรวจสอบ [สลิปโอนเงินธนาคาร] สำเร็จ!\n\n📌 ประเภทเอกสาร: 📲 สลิปโอนเงินธนาคาร (Bank Transfer Slip)\n📂 สถานะบันทึก: 🔴 รายจ่าย (โอนออกจากบัญชีบริษัท)\n🏷️ หมวดหมู่บัญชี: ${category}${memoLine}\n👤 บัญชีต้นทาง: ${slipSender}\n🏢 บัญชีผู้รับเงิน: ${slipReceiver || slipMerchant}\n💰 ยอดเงินโอน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่โอน: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+            }
           }
 
           const botMsg = {
