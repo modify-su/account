@@ -148,6 +148,22 @@ const DEFAULT_ATTENDANCE = [
   { id: 'att_3', date: '2026-07-25', employeeName: 'พนักงานทั่วไป', checkIn: '08:30', checkOut: '17:35', status: 'ontime', location: 'ออฟฟิศหลัก' }
 ];
 
+const DEFAULT_CATEGORIES = [
+  { id: 'cat-1', name: 'สำรองจ่าย', type: 'expense', isDefault: true, icon: '💳' },
+  { id: 'cat-2', name: 'ค่าอาหารและเครื่องดื่ม', type: 'expense', isDefault: true, icon: '🍽️' },
+  { id: 'cat-3', name: 'ค่าเดินทางและยานพาหนะ', type: 'expense', isDefault: true, icon: '🚗' },
+  { id: 'cat-4', name: 'ค่าอุปกรณ์สำนักงาน', type: 'expense', isDefault: true, icon: '📦' },
+  { id: 'cat-5', name: 'ค่าอินเทอร์เน็ตและโทรศัพท์', type: 'expense', isDefault: true, icon: '📶' },
+  { id: 'cat-6', name: 'ค่าเช่าสถานที่', type: 'expense', isDefault: true, icon: '🏢' },
+  { id: 'cat-7', name: 'ค่าสาธารณูปโภค', type: 'expense', isDefault: true, icon: '⚡' },
+  { id: 'cat-8', name: 'ค่าซ่อมแซมและบำรุงรักษา', type: 'expense', isDefault: true, icon: '🔧' },
+  { id: 'cat-9', name: 'ค่ารับรองลูกค้าและประชุม', type: 'expense', isDefault: true, icon: '👥' },
+  { id: 'cat-10', name: 'ค่าโฆษณาและการตลาด', type: 'expense', isDefault: true, icon: '📢' },
+  { id: 'cat-11', name: 'ค่าใช้จ่ายทั่วไป', type: 'expense', isDefault: true, icon: '📝' },
+  { id: 'cat-12', name: 'รายได้จากการขาย', type: 'income', isDefault: true, icon: '💰' },
+  { id: 'cat-13', name: 'รายได้จากการบริการ', type: 'income', isDefault: true, icon: '💼' }
+];
+
 const DEFAULT_LINE_PERMISSIONS = [];
 
 const MOCK_SLIPS = [
@@ -535,6 +551,18 @@ export default function App() {
   const [showPOSReceiptModal, setShowPOSReceiptModal] = useState(false);
   const [posPaymentMethod, setPosPaymentMethod] = useState('cash'); // cash, transfer
   const [posCashReceived, setPosCashReceived] = useState('');
+
+  // Category Management State (เพิ่ม ลบ แก้ไข หมวดหมู่)
+  const [categories, setCategories] = useState(() => safeJSONParse('flowledger_categories_v4', DEFAULT_CATEGORIES));
+  const [showCategoryManagerModal, setShowCategoryManagerModal] = useState(false);
+  const [catFilterTab, setCatFilterTab] = useState('all'); // all, expense, income, advance
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatType, setNewCatType] = useState('expense'); // expense, income
+  const [newCatIcon, setNewCatIcon] = useState('📁');
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [editingCatName, setEditingCatName] = useState('');
+  const [editingCatType, setEditingCatType] = useState('expense');
+  const [editingCatIcon, setEditingCatIcon] = useState('📁');
 
   // LINE Bot Simulator State
   const [chatMessages, setChatMessages] = useState(() => safeJSONParse('flowledger_chat_messages_v3', DEFAULT_CHAT_MESSAGES));
@@ -1119,6 +1147,78 @@ export default function App() {
   useEffect(() => {
     safeSetItem('flowledger_txs_v3', transactions);
   }, [transactions]);
+
+  useEffect(() => {
+    safeSetItem('flowledger_categories_v4', categories);
+  }, [categories]);
+
+  const handleAddCategory = (e) => {
+    if (e) e.preventDefault();
+    if (!newCatName.trim()) {
+      showToast('warning', 'กรุณาระบุชื่อหมวดหมู่', 'ชื่อหมวดหมู่บัญชีต้องไม่เว้นว่าง');
+      return;
+    }
+    const exists = categories.some(c => c.name.trim().toLowerCase() === newCatName.trim().toLowerCase());
+    if (exists) {
+      showToast('warning', 'ชื่อหมวดหมู่ซ้ำ', `มีหมวดหมู่ "${newCatName.trim()}" ในระบบแล้ว`);
+      return;
+    }
+    const newCat = {
+      id: `cat_${Date.now()}`,
+      name: newCatName.trim(),
+      type: newCatType,
+      icon: newCatIcon || (newCatType === 'income' ? '💰' : '📁'),
+      isDefault: false
+    };
+    setCategories(prev => [...prev, newCat]);
+    setNewCatName('');
+    showToast('success', 'เพิ่มหมวดหมู่สำเร็จ', `เพิ่มหมวดหมู่ "${newCat.name}" เรียบร้อยแล้ว`);
+  };
+
+  const handleStartEditCategory = (cat) => {
+    setEditingCatId(cat.id);
+    setEditingCatName(cat.name);
+    setEditingCatType(cat.type || 'expense');
+    setEditingCatIcon(cat.icon || '📁');
+  };
+
+  const handleSaveEditCategory = (id) => {
+    if (!editingCatName.trim()) {
+      showToast('warning', 'กรุณาระบุชื่อหมวดหมู่', 'ชื่อหมวดหมู่บัญชีต้องไม่เว้นว่าง');
+      return;
+    }
+    const oldCat = categories.find(c => c.id === id);
+    const oldName = oldCat?.name;
+    const updatedName = editingCatName.trim();
+
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, name: updatedName, type: editingCatType, icon: editingCatIcon } : c));
+
+    if (oldName && oldName !== updatedName) {
+      setTransactions(prev => prev.map(t => t.category === oldName ? { ...t, category: updatedName } : t));
+      setDocuments(prev => prev.map(d => d.category === oldName ? { ...d, category: updatedName } : d));
+    }
+
+    setEditingCatId(null);
+    showToast('success', 'แก้ไขหมวดหมู่สำเร็จ', `ปรับปรุงเป็น "${updatedName}" เรียบร้อยแล้ว`);
+  };
+
+  const handleDeleteCategory = (id, name) => {
+    if (categories.length <= 1) {
+      showToast('warning', 'ไม่สามารถลบได้', 'ระบบต้องมีหมวดหมู่บัญชีอย่างน้อย 1 รายการ');
+      return;
+    }
+    if (window.confirm(`ต้องการลบหมวดหมู่ "${name}" ออกจากระบบใช่หรือไม่?`)) {
+      setCategories(prev => prev.filter(c => c.id !== id));
+      showToast('info', 'ลบหมวดหมู่เรียบร้อย', `ลบหมวดหมู่ "${name}" สำเร็จ`);
+    }
+  };
+
+  const handleResetCategories = () => {
+    if (window.confirm('ต้องการคืนค่าหมวดหมู่มาตรฐานของระบบทั้งหมดใช่หรือไม่? (หมวดหมู่ที่คุณสร้างเพิ่มเติมจะถูกรีเซ็ต)')) {
+      setCategories(DEFAULT_CATEGORIES);
+      showToast('success', 'คืนค่าเริ่มต้นสำเร็จ', 'รีเซ็ตหมวดหมู่มาตรฐานเรียบร้อยแล้ว');
+    }
+  };
 
   useEffect(() => {
     safeSetItem('flowledger_invs_v3', invoices);
@@ -5090,6 +5190,13 @@ export default function App() {
                     <Trash2 size={15} /> เคลียร์รายการทั้งหมด
                   </button>
                 )}
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowCategoryManagerModal(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 0.95rem', fontSize: '0.85rem' }}
+                >
+                  <FolderPlus size={16} /> 🗂️ จัดการหมวดหมู่บัญชี
+                </button>
                 <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: 0, padding: '0.55rem 0.95rem', fontSize: '0.85rem' }}>
                   <Camera size={16} /> สแกนบิล/ใบเสร็จ
                   <input 
@@ -5105,7 +5212,7 @@ export default function App() {
                     type: 'expense',
                     date: new Date().toISOString().split('T')[0],
                     amount: '',
-                    category: 'ค่าอาหารและเครื่องดื่ม',
+                    category: categories.find(c => c.type === 'expense')?.name || 'สำรองจ่าย',
                     description: '',
                     ref: ''
                   });
@@ -7364,6 +7471,45 @@ export default function App() {
                             onChange={(e) => setSettings(prev => ({ ...prev, companyPhone: e.target.value }))}
                           />
                         </div>
+
+                        {/* Category Management Card in Settings */}
+                        <div style={{ marginTop: '1.5rem', borderTop: '1px dashed var(--border-color)', paddingTop: '1.25rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                            <h3 className="settings-section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              🗂️ หมวดหมู่บัญชีทั้งหมด ({categories.length} หมวดหมู่)
+                            </h3>
+                            <button 
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={() => setShowCategoryManagerModal(true)}
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                            >
+                              <Plus size={14} /> เพิ่ม / แก้ไข / ลบหมวดหมู่
+                            </button>
+                          </div>
+                          
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', maxHeight: '160px', overflowY: 'auto', padding: '0.5rem', backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            {categories.map((c, i) => (
+                              <span 
+                                key={c.id || i} 
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  fontSize: '0.78rem',
+                                  padding: '0.25rem 0.6rem',
+                                  borderRadius: '6px',
+                                  backgroundColor: c.name === 'สำรองจ่าย' ? 'rgba(217, 119, 6, 0.15)' : (c.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-card)'),
+                                  border: `1px solid ${c.name === 'สำรองจ่าย' ? '#d97706' : (c.type === 'income' ? 'var(--success)' : 'var(--border-color)')}`,
+                                  color: c.name === 'สำรองจ่าย' ? '#d97706' : (c.type === 'income' ? 'var(--success)' : 'inherit')
+                                }}
+                              >
+                                <span>{c.icon || '📁'}</span>
+                                <strong>{c.name}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       </div>
 
                       {/* Line Bot Settings */}
@@ -7810,6 +7956,200 @@ export default function App() {
 
       </main>
 
+      {/* ================= CATEGORY MANAGER MODAL (ระบบจัดการหมวดหมู่บัญชี เพิ่ม-ลบ-แก้ไข) ================= */}
+      {showCategoryManagerModal && (
+        <div className="modal-overlay" onClick={() => { setShowCategoryManagerModal(false); setEditingCatId(null); }}>
+          <div className="modal-content" style={{ maxWidth: '680px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.4rem' }}>🗂️</span>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.2rem' }}>จัดการหมวดหมู่บัญชี (Category Management)</h2>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>เพิ่ม ลบ และแก้ไขชื่อหมวดหมู่รายรับ-รายจ่ายขององค์กรได้ตามต้องการ</span>
+                </div>
+              </div>
+              <button className="modal-close-btn" onClick={() => { setShowCategoryManagerModal(false); setEditingCatId(null); }}>✕</button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '75vh', overflowY: 'auto' }}>
+              
+              {/* Form: Add or Edit Category */}
+              <div style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem' }}>
+                <h3 style={{ fontSize: '0.95rem', margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)' }}>
+                  <Plus size={16} /> {editingCatId ? '✏️ กำลังแก้ไขหมวดหมู่' : '➕ เพิ่มหมวดหมู่ใหม่'}
+                </h3>
+                
+                <form onSubmit={editingCatId ? (e) => { e.preventDefault(); handleSaveEditCategory(editingCatId); } : handleAddCategory}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 140px auto', gap: '0.5rem', alignItems: 'flex-end' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>ไอคอน</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        style={{ width: '50px', textAlign: 'center', fontSize: '1.1rem', padding: '0.45rem' }} 
+                        value={editingCatId ? editingCatIcon : newCatIcon}
+                        onChange={(e) => editingCatId ? setEditingCatIcon(e.target.value) : setNewCatIcon(e.target.value)}
+                        placeholder="📁"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>ชื่อหมวดหมู่บัญชี</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="เช่น ค่าภาษีอากร, ค่าธรรมเนียมธนาคาร, ค่าวัสดุก่อสร้าง"
+                        required
+                        value={editingCatId ? editingCatName : newCatName}
+                        onChange={(e) => editingCatId ? setEditingCatName(e.target.value) : setNewCatName(e.target.value)}
+                        style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>ประเภท</label>
+                      <select 
+                        className="form-select"
+                        value={editingCatId ? editingCatType : newCatType}
+                        onChange={(e) => editingCatId ? setEditingCatType(e.target.value) : setNewCatType(e.target.value)}
+                        style={{ padding: '0.5rem', fontSize: '0.85rem' }}
+                      >
+                        <option value="expense">🔴 รายจ่าย</option>
+                        <option value="income">🟢 รายรับ</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                      {editingCatId ? (
+                        <>
+                          <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}>
+                            💾 บันทึก
+                          </button>
+                          <button type="button" className="btn btn-secondary" onClick={() => setEditingCatId(null)} style={{ padding: '0.5rem 0.65rem', fontSize: '0.85rem' }}>
+                            ยกเลิก
+                          </button>
+                        </>
+                      ) : (
+                        <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                          <Plus size={15} /> เพิ่ม
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              {/* Category List Tabs */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    <button 
+                      type="button" 
+                      className={`btn ${catFilterTab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setCatFilterTab('all')}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                    >
+                      🌟 ทั้งหมด ({categories.length})
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`btn ${catFilterTab === 'expense' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setCatFilterTab('expense')}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                    >
+                      🔴 รายจ่าย & สำรองจ่าย ({categories.filter(c => c.type === 'expense').length})
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`btn ${catFilterTab === 'income' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setCatFilterTab('income')}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                    >
+                      🟢 รายรับ ({categories.filter(c => c.type === 'income').length})
+                    </button>
+                  </div>
+
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary"
+                    onClick={handleResetCategories}
+                    style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', color: 'var(--text-muted)' }}
+                    title="รีเซ็ตกลับสู่หมวดหมู่มาตรฐานเริ่มต้น"
+                  >
+                    ↺ คืนค่าเริ่มต้น
+                  </button>
+                </div>
+
+                {/* Category Table */}
+                <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <table className="custom-table" style={{ width: '100%', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '45px', textAlign: 'center' }}>ไอคอน</th>
+                        <th>ชื่อหมวดหมู่บัญชี</th>
+                        <th style={{ width: '120px' }}>ประเภท</th>
+                        <th style={{ width: '110px', textAlign: 'center' }}>การจัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categories
+                        .filter(c => catFilterTab === 'all' ? true : c.type === catFilterTab)
+                        .map((cat, idx) => (
+                          <tr key={cat.id || idx} style={{ backgroundColor: editingCatId === cat.id ? 'rgba(59, 130, 246, 0.08)' : undefined }}>
+                            <td style={{ textAlign: 'center', fontSize: '1.1rem' }}>{cat.icon || '📁'}</td>
+                            <td>
+                              <strong style={{ color: cat.name === 'สำรองจ่าย' ? '#d97706' : 'inherit' }}>{cat.name}</strong>
+                              {cat.name === 'สำรองจ่าย' && (
+                                <span style={{ marginLeft: '0.4rem', fontSize: '0.7rem', padding: '0.1rem 0.35rem', backgroundColor: 'rgba(217, 119, 6, 0.15)', color: '#d97706', borderRadius: '4px' }}>
+                                  Advance Payment
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`badge ${cat.type === 'income' ? 'badge-income' : 'badge-expense'}`} style={{ fontSize: '0.72rem' }}>
+                                {cat.type === 'income' ? '🟢 รายรับ' : '🔴 รายจ่าย'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                                <button 
+                                  type="button" 
+                                  className="btn btn-secondary" 
+                                  onClick={() => handleStartEditCategory(cat)}
+                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                  title="แก้ไขชื่อหมวดหมู่นี้"
+                                >
+                                  <Edit3 size={13} />
+                                </button>
+                                <button 
+                                  type="button" 
+                                  className="btn btn-danger" 
+                                  onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                                  title="ลบหมวดหมู่นี้"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+              <button type="button" className="btn btn-primary" onClick={() => { setShowCategoryManagerModal(false); setEditingCatId(null); }}>
+                <Check size={16} /> เรียบร้อย (ปิดหน้าต่าง)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= ADD/EDIT LEDGER TRANSACTION MODAL ================= */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
@@ -7876,29 +8216,28 @@ export default function App() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">หมวดหมู่</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                    <label className="form-label" style={{ margin: 0 }}>หมวดหมู่บัญชี</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowCategoryManagerModal(true)}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}
+                    >
+                      ⚙️ จัดการ/แก้ไขหมวดหมู่
+                    </button>
+                  </div>
                   <select 
                     className="form-select"
                     value={txForm.category}
                     onChange={(e) => setTxForm(prev => ({ ...prev, category: e.target.value }))}
                   >
-                    {txForm.type === 'income' ? (
-                      <>
-                        <option value="รายได้จากการขาย">รายได้จากการขาย</option>
-                        <option value="รายได้อื่น ๆ">รายได้อื่น ๆ</option>
-                        <option value="ดอกเบี้ยรับ">ดอกเบี้ยรับ</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="ค่าอาหารและเครื่องดื่ม">ค่าอาหารและเครื่องดื่ม</option>
-                        <option value="ค่าอุปกรณ์สำนักงาน">ค่าอุปกรณ์สำนักงาน</option>
-                        <option value="ค่าเดินทางและยานพาหนะ">ค่าเดินทางและยานพาหนะ</option>
-                        <option value="ค่าอินเทอร์เน็ตและโทรศัพท์">ค่าอินเทอร์เน็ตและโทรศัพท์</option>
-                        <option value="ค่าเช่าสถานที่">ค่าเช่าสถานที่</option>
-                        <option value="สำรองจ่าย">สำรองจ่าย (สำรองจ่ายโดยพนักงาน)</option>
-                        <option value="อื่น ๆ">อื่น ๆ</option>
-                      </>
-                    )}
+                    {categories
+                      .filter(c => txForm.type === 'income' ? c.type === 'income' : c.type !== 'income')
+                      .map(c => (
+                        <option key={c.id || c.name} value={c.name}>
+                          {c.icon ? `${c.icon} ` : ''}{c.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -8381,24 +8720,26 @@ export default function App() {
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 
                 <div className="form-group">
-                  <label className="form-label">หมวดหมู่บัญชี (Category)</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                    <label className="form-label" style={{ margin: 0 }}>หมวดหมู่บัญชี (Category)</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowCategoryManagerModal(true)}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}
+                    >
+                      ⚙️ จัดการ/แก้ไขหมวดหมู่
+                    </button>
+                  </div>
                   <select 
                     className="form-select"
                     value={docForm.category}
                     onChange={(e) => setDocForm(prev => ({ ...prev, category: e.target.value }))}
                   >
-                    <option value="ค่าอาหารและเครื่องดื่ม">ค่าอาหารและเครื่องดื่ม</option>
-                    <option value="ค่าเดินทางและยานพาหนะ">ค่าเดินทางและยานพาหนะ</option>
-                    <option value="ค่าอุปกรณ์สำนักงาน">ค่าอุปกรณ์สำนักงาน</option>
-                    <option value="ค่าอินเทอร์เน็ตและโทรศัพท์">ค่าอินเทอร์เน็ตและโทรศัพท์</option>
-                    <option value="ค่าเช่าสถานที่">ค่าเช่าสถานที่</option>
-                    <option value="ค่าสาธารณูปโภค">ค่าสาธารณูปโภค</option>
-                    <option value="ค่าซ่อมแซมและบำรุงรักษา">ค่าซ่อมแซมและบำรุงรักษา</option>
-                    <option value="ค่าโฆษณาและการตลาด">ค่าโฆษณาและการตลาด</option>
-                    <option value="ค่าใช้จ่ายทั่วไป">ค่าใช้จ่ายทั่วไป</option>
-                    <option value="รายได้จากการขาย">รายได้จากการขาย</option>
-                    <option value="รายได้จากการบริการ">รายได้จากการบริการ</option>
-                    <option value="อื่น ๆ">อื่น ๆ</option>
+                    {categories.map(c => (
+                      <option key={c.id || c.name} value={c.name}>
+                        {c.icon ? `${c.icon} ` : ''}{c.name} {c.type === 'income' ? '(🟢 รายรับ)' : '(🔴 รายจ่าย)'}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -8576,24 +8917,26 @@ export default function App() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" style={{ fontWeight: 'bold' }}>หมวดหมู่บัญชี (Category)</label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                        <label className="form-label" style={{ fontWeight: 'bold', margin: 0 }}>หมวดหมู่บัญชี (Category)</label>
+                        <button 
+                          type="button" 
+                          onClick={() => setShowCategoryManagerModal(true)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}
+                        >
+                          ⚙️ จัดการ/แก้ไขหมวดหมู่
+                        </button>
+                      </div>
                       <select 
                         className="form-select"
                         value={scannedReceiptForm.category}
                         onChange={(e) => setScannedReceiptForm(prev => ({ ...prev, category: e.target.value }))}
                       >
-                        <option value="สำรองจ่าย">💳 สำรองจ่าย (พนักงานจ่ายแทน/รอเบิกคืน)</option>
-                        <option value="ค่าอาหารและเครื่องดื่ม">ค่าอาหารและเครื่องดื่ม</option>
-                        <option value="ค่าเดินทางและยานพาหนะ">ค่าเดินทางและยานพาหนะ</option>
-                        <option value="ค่าอุปกรณ์สำนักงาน">ค่าอุปกรณ์สำนักงาน</option>
-                        <option value="ค่าอินเทอร์เน็ตและโทรศัพท์">ค่าอินเทอร์เน็ตและโทรศัพท์</option>
-                        <option value="ค่าเช่าสถานที่">ค่าเช่าสถานที่</option>
-                        <option value="ค่าสาธารณูปโภค">ค่าสาธารณูปโภค</option>
-                        <option value="ค่าซ่อมแซมและบำรุงรักษา">ค่าซ่อมแซมและบำรุงรักษา</option>
-                        <option value="ค่าโฆษณาและการตลาด">ค่าโฆษณาและการตลาด</option>
-                        <option value="ค่าใช้จ่ายทั่วไป">ค่าใช้จ่ายทั่วไป</option>
-                        <option value="รายได้จากการขาย">รายได้จากการขาย</option>
-                        <option value="รายได้จากการบริการ">รายได้จากการบริการ</option>
+                        {categories.map(c => (
+                          <option key={c.id || c.name} value={c.name}>
+                            {c.icon ? `${c.icon} ` : ''}{c.name} {c.name === 'สำรองจ่าย' ? '(💳 สำรองจ่าย/รอเบิกคืน)' : (c.type === 'income' ? '(🟢 รายรับ)' : '(🔴 รายจ่าย)')}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
