@@ -598,6 +598,7 @@ export default function App() {
     category: 'ค่าใช้จ่ายทั่วไป',
     sender: ''
   });
+  const [showProcessPayrollModal, setShowProcessPayrollModal] = useState(false);
   const [processingSalaryProfile, setProcessingSalaryProfile] = useState(null);
   const [payrollForm, setPayrollForm] = useState({
     monthYear: new Date().toISOString().slice(0, 7), // "YYYY-MM"
