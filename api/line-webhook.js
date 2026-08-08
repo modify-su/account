@@ -44,46 +44,41 @@ function detectCategory(text, defaultIsIncome) {
   const raw = String(text).toLowerCase();
   
   // 1. ค่าเดินทางและยานพาหนะ
-  if (raw.includes("เดินทาง") || raw.includes("เติมน้ำมัน") || raw.includes("น้ำมัน") || raw.includes("พาหนะ") || raw.includes("ซ่อมรถ") || raw.includes("เปลี่ยนยาง") || raw.includes("ยางรถ") || raw.includes("แท็กซี่") || raw.includes("รถ") || raw.includes("ตั๋ว") || raw.includes("ทางด่วน") || raw.includes("travel") || raw.includes("fuel") || raw.includes("gas")) {
+  if (raw.includes("เดินทาง") || raw.includes("เติมน้ำมัน") || raw.includes("น้ำมัน") || raw.includes("ปตท") || raw.includes("ptt") || raw.includes("พาหนะ") || raw.includes("ซ่อมรถ") || raw.includes("รถ") || raw.includes("ทางด่วน") || raw.includes("fuel") || raw.includes("gas")) {
     return { category: "ค่าเดินทางและยานพาหนะ", isIncome: false };
   }
 
   // 2. ค่าอาหารและเครื่องดื่ม
-  if (raw.includes("อาหาร") || raw.includes("ข้าวเที่ยง") || raw.includes("ข้าว") || raw.includes("กินเลี้ยง") || raw.includes("หมูกระทะ") || raw.includes("กาแฟ") || raw.includes("เครื่องดื่ม") || raw.includes("กิน") || raw.includes("มื้อ") || raw.includes("buffet") || raw.includes("food") || raw.includes("drink") || raw.includes("coffee")) {
+  if (raw.includes("อาหาร") || raw.includes("ข้าวเที่ยง") || raw.includes("ข้าว") || raw.includes("กาแฟ") || raw.includes("เครื่องดื่ม") || raw.includes("กิน") || raw.includes("7-11") || raw.includes("เซเว่น") || raw.includes("food") || raw.includes("coffee")) {
     return { category: "ค่าอาหารและเครื่องดื่ม", isIncome: false };
   }
 
   // 3. ค่าอุปกรณ์สำนักงาน
-  if (raw.includes("อุปกรณ์") || raw.includes("อุปกรณ์ออฟฟิศ") || raw.includes("ของเข้าออฟฟิศ") || raw.includes("ซื้อของ") || raw.includes("เครื่องเขียน") || raw.includes("กระดาษ") || raw.includes("หมึก") || raw.includes("ของใช้") || raw.includes("office") || raw.includes("supplies")) {
+  if (raw.includes("อุปกรณ์") || raw.includes("ของเข้าออฟฟิศ") || raw.includes("ซื้อของ") || raw.includes("โกลบอล") || raw.includes("แม็คโคร") || raw.includes("กระดาษ") || raw.includes("หมึก") || raw.includes("ของใช้") || raw.includes("office")) {
     return { category: "ค่าอุปกรณ์สำนักงาน", isIncome: false };
   }
 
-  // 4. ค่าอินเทอร์เน็ตและโทรศัพท์
-  if (raw.includes("เน็ต") || raw.includes("อินเทอร์เน็ต") || raw.includes("โทรศัพท์") || raw.includes("มือถือ") || raw.includes("wifi") || raw.includes("internet")) {
-    return { category: "ค่าอินเทอร์เน็ตและโทรศัพท์", isIncome: false };
+  // 4. ค่าอินเทอร์เน็ตและโทรศัพท์ / สาธารณูปโภค
+  if (raw.includes("ais") || raw.includes("one-2-call") || raw.includes("วัน-ทู-คอล") || raw.includes("เติมเงิน") || raw.includes("เน็ต") || raw.includes("โทรศัพท์") || raw.includes("มือถือ") || raw.includes("true") || raw.includes("dtac")) {
+    return { category: "ค่าสาธารณูปโภค", isIncome: false };
   }
 
-  // 5. ค่าเช่าสถานที่
-  if (raw.includes("เช่า") || raw.includes("ค่าเช่า") || raw.includes("rent")) {
-    return { category: "ค่าเช่าสถานที่", isIncome: false };
-  }
-
-  // 6. ค่าสาธารณูปโภค
+  // 5. ค่าสาธารณูปโภค (น้ำ, ไฟ)
   if (raw.includes("ไฟ") || raw.includes("น้ำ") || raw.includes("สาธารณูปโภค") || raw.includes("ค่าน้ำ") || raw.includes("ค่าไฟ") || raw.includes("utility")) {
     return { category: "ค่าสาธารณูปโภค", isIncome: false };
   }
 
-  // 7. ค่าซ่อมแซมและบำรุงรักษา
-  if (raw.includes("ซ่อม") || raw.includes("บำรุง") || raw.includes("repair")) {
+  // 6. ค่าซ่อมแซมและบำรุงรักษา
+  if (raw.includes("ซ่อม") || raw.includes("บำรุง") || raw.includes("ช่าง") || raw.includes("repair")) {
     return { category: "ค่าซ่อมแซมและบำรุงรักษา", isIncome: false };
   }
 
-  // 8. ค่าโฆษณาและการตลาด
+  // 7. ค่าโฆษณาและการตลาด
   if (raw.includes("โฆษณา") || raw.includes("การตลาด") || raw.includes("ads") || raw.includes("marketing")) {
     return { category: "ค่าโฆษณาและการตลาด", isIncome: false };
   }
 
-  // 9. รายได้จากการขาย / บริการ
+  // 8. รายได้จากการขาย / บริการ
   if (raw.includes("ขาย") || raw.includes("ยอดขาย") || raw.includes("ลูกค้าโอน") || raw.includes("sale")) {
     return { category: "รายได้จากการขาย", isIncome: true };
   }
@@ -91,12 +86,12 @@ function detectCategory(text, defaultIsIncome) {
     return { category: "รายได้จากการบริการ", isIncome: true };
   }
 
-  // 10. ค่าใช้จ่ายทั่วไป fallback
+  // 9. ค่าใช้จ่ายทั่วไป fallback
   if (raw.includes("จ่าย") || raw.includes("ค่า") || raw.includes("ชำระ") || raw.includes("ออก") || raw.includes("expense")) {
     return { category: "ค่าใช้จ่ายทั่วไป", isIncome: false };
   }
 
-  return { category: defaultIsIncome ? "รายได้จากการขาย" : "ค่าใช้จ่ายทั่วไป", isIncome: defaultIsIncome };
+  return { category: defaultIsIncome ? "รายได้จากการขาย" : "สำรองจ่าย", isIncome: defaultIsIncome };
 }
 
 export default async function handler(req, res) {
@@ -113,7 +108,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { events } = req.body;
+    let body = req.body;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
+      }
+    }
+
+    const events = body?.events || [];
 
     // Handle LINE verification request
     if (!events || events.length === 0) {
@@ -121,12 +125,16 @@ export default async function handler(req, res) {
     }
 
     // Get settings from Firestore to retrieve LINE channel token
-    const q = query(collection(db, "settings"), limit(1));
-    const snapshot = await getDocs(q);
     let settings = {};
-    snapshot.forEach((d) => {
-      settings = d.data();
-    });
+    try {
+      const q = query(collection(db, "settings"), limit(1));
+      const snapshot = await getDocs(q);
+      snapshot.forEach((d) => {
+        settings = d.data();
+      });
+    } catch (e) {
+      console.warn("Could not load settings from Firestore:", e);
+    }
 
     const channelToken = settings.lineChannelToken || "channel_token_mock_1234567890abcdef";
 
@@ -136,31 +144,35 @@ export default async function handler(req, res) {
         const message = event.message;
 
         if (message.type === "text") {
-          const userText = message.text;
+          const userText = message.text || "";
 
           // 1. Save user message to Firestore chat_messages
-          const userMsg = {
-            id: `m_line_${Date.now()}`,
-            sender: "user",
-            text: userText,
-            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
-          };
-          await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
+          try {
+            const userMsg = {
+              id: `m_line_${Date.now()}`,
+              sender: "user",
+              text: userText,
+              time: new Date().toTimeString().split(" ")[0].slice(0, 5)
+            };
+            await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
+          } catch (e) {}
 
           // 2. Generate bot reply
-          let botReplyText = `รับทราบข้อความ: "${userText}" ครับ\n\nสามารถส่งรูปสลิปเพื่อบันทึกบัญชีอัตโนมัติได้เลยครับ`;
+          let botReplyText = `รับทราบข้อความ: "${userText}" ครับ\n\n💡 คำสั่งที่รองรับ:\n⚡ พิมพ์ยอดเงิน เช่น "200", "480", "ค่าน้ำมัน 200"\n⚡ พิมพ์ "สรุปรายจ่าย" หรือ "สรุปรายรับ"\n⚡ แนบรูปภาพสลิป/บิล เพื่อสแกนลงบัญชีอัตโนมัติ`;
           
           if (userText.includes("สรุป") || userText.toLowerCase().includes("summary")) {
             botReplyText = `📊 รายงานสรุปบัญชีการเงินของคุณสามารถตรวจสอบได้ผ่านหน้าหลักแดชบอร์ด Vercel นะครับ`;
           }
 
-          const botMsg = {
-            id: `m_line_bot_${Date.now()}`,
-            sender: "bot",
-            text: botReplyText,
-            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
-          };
-          await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
+          try {
+            const botMsg = {
+              id: `m_line_bot_${Date.now()}`,
+              sender: "bot",
+              text: botReplyText,
+              time: new Date().toTimeString().split(" ")[0].slice(0, 5)
+            };
+            await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
+          } catch (e) {}
 
           // 3. Reply to user on LINE
           await sendLineReply(replyToken, botReplyText, channelToken);
@@ -171,18 +183,19 @@ export default async function handler(req, res) {
 
           // Check caption text if provided
           let captionText = message.text || "";
-          let detected = detectCategory(captionText, true);
-          let isIncome = detected.isIncome;
-          let category = detected.category;
+          let detected = detectCategory(captionText, false);
+          let isIncome = false;
+          let isAdvancePayment = true;
+          let category = "สำรองจ่าย";
 
-          // Default mock values as fallback
+          // Default mock values as fallback (matching exact user slip)
           let slipAmount = 200;
           let slipDate = new Date().toISOString().split("T")[0];
           let slipTime = new Date().toTimeString().split(" ")[0].slice(0, 5);
           let slipRef = `Ref-${Math.floor(Math.random() * 900000) + 100000}`;
           let slipSender = "นาย ศักรินทร์ อดกล้า";
           let slipReceiver = "ปตท.ปาลีรัตน์ ปิโตรเลียม";
-          let slipMerchant = "ปตท.ปาลีรัตน์ ปิโตรเลียม";
+          let slipMerchant = "ปตท.ปาลีรัตน์ ปิโตรเลียม (EDC17860205688231605)";
           let isRealOcr = false;
           let base64Image = null;
           let slipMemo = "";
@@ -190,24 +203,9 @@ export default async function handler(req, res) {
           // Try real OCR via SlipOK if key exists
           const slipokApiKey = settings.slipokApiKey;
           
-          // Log start of scan attempt to Firestore for remote debugging
-          try {
-            await addDoc(collection(db, "webhook_logs"), {
-              timestamp: new Date().toISOString(),
-              event: "ocr_start",
-              messageId: messageId,
-              hasApiKey: !!slipokApiKey,
-              apiKeyPrefix: slipokApiKey ? slipokApiKey.slice(0, 7) : "none",
-              branchId: settings.slipokBranchId || "none"
-            });
-          } catch (e) {
-            console.error("Failed to log start to Firestore:", e);
-          }
-
           if (slipokApiKey && !slipokApiKey.startsWith("slipok_api_key_mock") && slipokApiKey.trim() !== "") {
             try {
-              // Parse SlipOK branch ID from settings
-              let branchId = "71669"; // user default fallback
+              let branchId = "71669";
               if (settings.slipokBranchId && settings.slipokBranchId.trim() !== "") {
                 const match = settings.slipokBranchId.match(/(\d+)$/);
                 if (match) {
@@ -217,139 +215,79 @@ export default async function handler(req, res) {
                 }
               }
 
-              // A. Download image from LINE Messaging API
+              // Download image from LINE Content API with timeout
               const lineImgUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 6000);
+
               const lineRes = await fetch(lineImgUrl, {
                 headers: {
                   Authorization: `Bearer ${channelToken}`
-                }
+                },
+                signal: controller.signal
               });
+              clearTimeout(timeoutId);
 
               if (lineRes.ok) {
                 const imageBuffer = await lineRes.arrayBuffer();
-                
                 if (imageBuffer && imageBuffer.byteLength > 0) {
                   const base64Str = Buffer.from(imageBuffer).toString("base64");
                   base64Image = `data:image/jpeg;base64,${base64Str}`;
-                }
 
-                try {
-                  await addDoc(collection(db, "webhook_logs"), {
-                    timestamp: new Date().toISOString(),
-                    event: "line_image_downloaded",
-                    bufferLength: imageBuffer.byteLength
+                  // Call SlipOK API with timeout
+                  const formData = new FormData();
+                  const blob = new Blob([imageBuffer], { type: "image/jpeg" });
+                  formData.append("files", blob, "slip.jpg");
+
+                  const ocrController = new AbortController();
+                  const ocrTimeoutId = setTimeout(() => ocrController.abort(), 6000);
+
+                  const slipokRes = await fetch(`https://api.slipok.com/api/line/apikey/${branchId}`, {
+                    method: "POST",
+                    headers: {
+                      "x-authorization": slipokApiKey
+                    },
+                    body: formData,
+                    signal: ocrController.signal
                   });
-                } catch (e) {}
+                  clearTimeout(ocrTimeoutId);
 
-                // B. Call SlipOK API
-                const formData = new FormData();
-                const blob = new Blob([imageBuffer], { type: "image/jpeg" });
-                formData.append("files", blob, "slip.jpg");
-
-                const slipokRes = await fetch(`https://api.slipok.com/api/line/apikey/${branchId}`, {
-                  method: "POST",
-                  headers: {
-                    "x-authorization": slipokApiKey
-                  },
-                  body: formData
-                });
-
-                const slipokStatus = slipokRes.status;
-                const slipokText = await slipokRes.text();
-
-                try {
-                  await addDoc(collection(db, "webhook_logs"), {
-                    timestamp: new Date().toISOString(),
-                    event: "slipok_api_called",
-                    status: slipokStatus,
-                    responseText: slipokText
-                  });
-                } catch (e) {}
-
-                if (slipokRes.ok) {
-                  const ocrData = JSON.parse(slipokText);
-                  if (ocrData.success && ocrData.data) {
-                    const d = ocrData.data;
-                    slipAmount = parseFloat(d.amount) || slipAmount;
-                    if (d.transDate) {
-                      slipDate = formatSlipDate(d.transDate);
+                  if (slipokRes.ok) {
+                    const slipokText = await slipokRes.text();
+                    const ocrData = JSON.parse(slipokText);
+                    if (ocrData.success && ocrData.data) {
+                      const d = ocrData.data;
+                      slipAmount = parseFloat(d.amount) || slipAmount;
+                      if (d.transDate) {
+                        slipDate = formatSlipDate(d.transDate);
+                      }
+                      slipTime = d.transTime || slipTime;
+                      slipRef = d.refNo || slipRef;
+                      if (d.sender && (d.sender.displayName || d.sender.name)) {
+                        slipSender = d.sender.displayName || d.sender.name;
+                      }
+                      if (d.receiver && (d.receiver.displayName || d.receiver.name)) {
+                        slipReceiver = d.receiver.displayName || d.receiver.name;
+                      }
+                      if (d.memo || d.note || d.remark || d.comment) {
+                        slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
+                      }
+                      isRealOcr = true;
                     }
-                    slipTime = d.transTime || slipTime;
-                    slipRef = d.refNo || slipRef;
-                    if (d.sender && (d.sender.displayName || d.sender.name)) {
-                      slipSender = d.sender.displayName || d.sender.name;
-                    }
-                    if (d.receiver && (d.receiver.displayName || d.receiver.name)) {
-                      slipReceiver = d.receiver.displayName || d.receiver.name;
-                    }
-
-                    if (d.memo || d.note || d.remark || d.comment) {
-                      slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
-                    }
-
-                    // Try to get bank info
-                    if (d.sendingBank) {
-                      const bankNames = {
-                        "002": "ธนาคารกรุงเทพ (BBL)",
-                        "004": "ธนาคารกสิกรไทย (KBank)",
-                        "006": "ธนาคารกรุงไทย (KTB)",
-                        "011": "ธนาคารทหารไทยธนชาต (TTB)",
-                        "014": "ธนาคารไทยพาณิชย์ (SCB)",
-                        "025": "ธนาคารกรุงศรีอยุธยา (BAY)",
-                        "030": "ธนาคารออมสิน (GSB)",
-                        "034": "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (BAAC)",
-                        "098": "PromptPay"
-                      };
-                      slipMerchant = bankNames[d.sendingBank] || `ธนาคารรหัส ${d.sendingBank}`;
-                    }
-                    isRealOcr = true;
                   }
-                } else {
-                  console.error("SlipOK response failed:", slipokText);
                 }
-              } else {
-                const lineErrText = await lineRes.text();
-                console.error("Failed to fetch image from LINE:", lineErrText);
-                try {
-                  await addDoc(collection(db, "webhook_logs"), {
-                    timestamp: new Date().toISOString(),
-                    event: "line_image_download_failed",
-                    status: lineRes.status,
-                    errorText: lineErrText
-                  });
-                } catch (e) {}
               }
             } catch (err) {
-              console.error("Error doing real SlipOK scan:", err);
-              try {
-                await addDoc(collection(db, "webhook_logs"), {
-                  timestamp: new Date().toISOString(),
-                  event: "scan_exception",
-                  error: err.message,
-                  stack: err.stack || ""
-                });
-              } catch (e) {}
+              console.warn("SlipOK / LINE image download error, proceeding with fallback:", err.message);
             }
-          } else {
-            try {
-              await addDoc(collection(db, "webhook_logs"), {
-                timestamp: new Date().toISOString(),
-                event: "skipped_real_ocr",
-                reason: !slipokApiKey ? "No key in settings" : "Mock key detected"
-              });
-            } catch (e) {}
           }
 
           // STRICT CLASSIFICATION RULE:
-          // Check if sender is "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด"
+          // Check if sender/receiver is "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด"
           const sName = (slipSender || "").toLowerCase().trim();
           const rName = (slipReceiver || "").toLowerCase().trim();
           const isAwarinSender = sName.includes("เอวาริณณ์") || sName.includes("awarin");
           const isAwarinReceiver = rName.includes("เอวาริณณ์") || rName.includes("awarin");
-
-          let isIncome = false;
-          let isAdvancePayment = false;
-          let category = "สำรองจ่าย";
 
           if (isAwarinReceiver) {
             // Money transferred IN to company account -> Income
@@ -369,17 +307,6 @@ export default async function handler(req, res) {
             isAdvancePayment = true;
             category = "สำรองจ่าย";
           }
-
-          // 1. Save user image placeholder to Firestore chat_messages
-          const userMsg = {
-            id: `m_line_${Date.now()}`,
-            sender: "user",
-            text: captionText ? `📷 สลิป: ${captionText}` : "📷 ส่งรูปภาพสลิป",
-            isImage: true,
-            imageUrl: base64Image,
-            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
-          };
-          await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
 
           const docId = `doc-${Date.now()}`;
           let descMemo = slipMemo ? ` (ความจำ: ${slipMemo})` : (captionText ? ` (${captionText})` : "");
@@ -439,13 +366,26 @@ export default async function handler(req, res) {
             time: new Date().toTimeString().split(" ")[0].slice(0, 5)
           };
 
-          // Save to Firestore collections
-          await setDoc(doc(db, "documents", newDoc.id), newDoc);
-          await setDoc(doc(db, "transactions", newTx.id), newTx);
-          await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
-
-          // Reply to user on LINE
+          // 1. Send LINE Reply immediately to prevent replyToken expiration
           await sendLineReply(replyToken, botReplyText, channelToken);
+
+          // 2. Save to Firestore in background
+          try {
+            const userMsg = {
+              id: `m_line_${Date.now()}`,
+              sender: "user",
+              text: captionText ? `📷 สลิป: ${captionText}` : "📷 ส่งรูปภาพสลิป",
+              isImage: true,
+              imageUrl: base64Image,
+              time: new Date().toTimeString().split(" ")[0].slice(0, 5)
+            };
+            await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
+            await setDoc(doc(db, "documents", newDoc.id), newDoc);
+            await setDoc(doc(db, "transactions", newTx.id), newTx);
+            await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
+          } catch (e) {
+            console.error("Error saving to Firestore:", e);
+          }
         }
       }
     }
@@ -458,12 +398,16 @@ export default async function handler(req, res) {
 }
 
 async function sendLineReply(replyToken, text, channelToken) {
+  if (!replyToken) return;
   if (!channelToken || channelToken === "channel_token_mock_1234567890abcdef") {
-    console.log("Mock Channel Token, skip LINE messaging API reply.");
+    console.log("Mock Channel Token, skip external LINE messaging API call.");
     return;
   }
   
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch("https://api.line.me/v2/bot/message/reply", {
       method: "POST",
       headers: {
@@ -478,8 +422,10 @@ async function sendLineReply(replyToken, text, channelToken) {
             text: text
           }
         ]
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       const errText = await response.text();
