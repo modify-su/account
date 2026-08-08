@@ -2029,13 +2029,13 @@ export default function App() {
         details = 'ชำระค่าน้ำประปาประจำเดือน';
       }
 
-      // Try extract numeric total from filename if present (e.g. receipt_1500.jpg)
+      // Try extract numeric total from filename if present (e.g. receipt_480.jpg)
       const numMatches = file.name.match(/\d+[\._]?\d*/g);
       if (numMatches && numMatches.length > 0) {
-        const potentialNum = numMatches.find(n => parseFloat(n) > 10 && parseFloat(n) < 100000);
+        const potentialNum = numMatches.find(n => parseFloat(n) >= 10 && parseFloat(n) < 100000);
         if (potentialNum) amountStr = potentialNum.replace('_', '.');
       }
-      if (!amountStr) amountStr = (Math.floor(Math.random() * 450) + 50).toFixed(2);
+      if (!amountStr) amountStr = '480.00';
 
       const refNo = `BILL-${Date.now().toString().slice(-6)}`;
       const currentDate = new Date().toISOString().split('T')[0];
@@ -3112,7 +3112,111 @@ export default function App() {
         const docList = documents.map(d => `📄 ${d.title} (฿${d.amount.toLocaleString()})`).slice(0, 5).join('\n');
         botResponse = `📂 *ประวัติเอกสารล่าสุด 5 รายการ*\n\n${docList || 'ไม่มีข้อมูลคลังเอกสาร'}\n\nเรียกดูเอกสารทั้งหมดในแท็บ "คลังเอกสารจัดเก็บ"`;
       } else {
-        botResponse = `🤖 สวัสดีครับคุณ ${activeLineUser?.employeeName || 'พนักงาน'}\n\nคำสั่งที่รองรับ:\n⚡ พิมพ์ "รายจ่ายเดือนนี้" หรือ "รายรับเดือนนี้"\n⚡ พิมพ์ "/summary" เพื่อดูรายงานการเงินประจำเดือนทั้งหมด\n⚡ แนบภาพสลิป/บิล เพื่อสแกนลงบันทึกบัญชี\n⚡ พิมพ์ "ลาป่วย..." เพื่อยื่นใบลาอัตโนมัติ`;
+        // Smart Expense & Amount Parsing (e.g., "480", "จ่าย 480", "บิล 480", "สลิป 480", "ค่าน้ำมัน 480", "480 บาท")
+        const numberMatches = content.match(/\d+[\.,]?\d*/g);
+        const hasExpenseKeywords = cleanCmd.includes('จ่าย') || cleanCmd.includes('บิล') || cleanCmd.includes('สลิป') || cleanCmd.includes('ค่า') || cleanCmd.includes('บาท') || cleanCmd.includes('ซื้อ') || cleanCmd.includes('น้ำมัน') || cleanCmd.includes('อาหาร');
+        
+        if (numberMatches && numberMatches.length > 0 && (hasExpenseKeywords || !isNaN(Number(cleanCmd.replace(/[,฿\s]/g, ''))))) {
+          const parsedAmt = parseFloat(numberMatches[0].replace(',', ''));
+          if (parsedAmt > 0) {
+            let category = 'ค่าใช้จ่ายทั่วไป';
+            let merchant = 'ร้านค้า/ผู้รับเงิน';
+            let desc = 'บันทึกบิลรายจ่ายผ่าน LINE Chat';
+            let docType = 'official_receipt';
+
+            if (cleanCmd.includes('น้ำมัน') || cleanCmd.includes('เดินทาง') || cleanCmd.includes('รถ') || cleanCmd.includes('กิโล') || cleanCmd.includes('ปตท')) {
+              category = 'ค่าเดินทางและยานพาหนะ';
+              merchant = 'สถานีบริการน้ำมัน ปตท. (PTT Station)';
+              desc = 'ค่าน้ำมันเชื้อเพลิงเดินทางปฏิบัติงาน';
+            } else if (cleanCmd.includes('อาหาร') || cleanCmd.includes('ข้าว') || cleanCmd.includes('กาแฟ') || cleanCmd.includes('เครื่องดื่ม') || cleanCmd.includes('กิน') || cleanCmd.includes('7-11') || cleanCmd.includes('เซเว่น')) {
+              category = 'ค่าอาหารและเครื่องดื่ม';
+              merchant = 'ร้านอาหารและเครื่องดื่ม';
+              desc = 'ค่าอาหารและเครื่องดื่ม';
+            } else if (cleanCmd.includes('ซ่อม') || cleanCmd.includes('ช่าง') || cleanCmd.includes('บำรุง') || cleanCmd.includes('มือ')) {
+              category = 'ค่าซ่อมแซมและบำรุงรักษา';
+              merchant = 'ร้านสมศักดิ์การช่าง';
+              desc = 'บิลเงินสดค่าซ่อมแซมและบำรุงรักษา';
+              docType = 'handwritten_bill';
+            } else if (cleanCmd.includes('อุปกรณ์') || cleanCmd.includes('กระดาษ') || cleanCmd.includes('หมึก') || cleanCmd.includes('สำนักงาน') || cleanCmd.includes('ของใช้') || cleanCmd.includes('โกลบอล')) {
+              category = 'ค่าอุปกรณ์สำนักงาน';
+              merchant = 'สยามโกลบอลเฮ้าส์ (Siam Global House)';
+              desc = 'ซื้อวัสดุและอุปกรณ์สำนักงาน';
+            } else if (cleanCmd.includes('ประชุม') || cleanCmd.includes('รับรอง') || cleanCmd.includes('ลูกค้า')) {
+              category = 'ค่ารับรองลูกค้าและประชุม';
+              merchant = 'ร้านอาหาร/สถานที่ประชุม';
+              desc = 'ค่ารับรองลูกค้าและประชุมงาน';
+            }
+
+            const senderName = activeLineUser?.employeeName || 'นายศักรินทร์ สุขใจ';
+            const docId = `doc-${Date.now()}`;
+            const refNo = `BILL-${Date.now().toString().slice(-6)}`;
+
+            const newDoc = {
+              id: docId,
+              date: new Date().toISOString().split('T')[0],
+              time: new Date().toTimeString().split(' ')[0].slice(0, 5),
+              docType: docType,
+              docTypeLabel: docType === 'handwritten_bill' ? 'บิลเงินสดเขียนมือ' : 'ใบเสร็จรายจ่าย',
+              type: 'tax_invoice', // ALWAYS Expense / Tax Invoice
+              title: `[ใบเสร็จรายจ่าย] ${merchant}`,
+              ref: refNo,
+              amount: parsedAmt,
+              merchant: merchant,
+              category: category,
+              sender: senderName,
+              status: 'archived',
+              details: `บันทึกบิลรายจ่ายผ่าน LINE Chat โดย [${senderName}] - ${desc}`
+            };
+
+            const newTx = {
+              id: `t_line_${Date.now()}`,
+              date: new Date().toISOString().split('T')[0],
+              type: 'expense',
+              docType: docType,
+              category: category,
+              amount: parsedAmt,
+              description: `[รายจ่าย: ${category}] ${merchant} (${desc})`,
+              ref: refNo
+            };
+
+            if (isFirebaseConfigured()) {
+              saveDocToCloud('documents', newDoc);
+              saveDocToCloud('transactions', newTx);
+            } else {
+              setDocuments(prev => [newDoc, ...(prev || [])]);
+              setTransactions(prev => [newTx, ...(prev || [])]);
+            }
+
+            botResponse = `✅ *บันทึกบิลรายจ่าย ฿${parsedAmt.toLocaleString('th-TH', { minimumFractionDigits: 2 })} สำเร็จ!*
+
+📌 *ประเภทเอกสาร:* 🔴 รายจ่าย (Expense)
+💰 *จำนวนเงิน:* ฿${parsedAmt.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+📂 *หมวดหมู่บัญชี:* *${category}*
+🏢 *ร้านค้า/ผู้รับ:* ${merchant}
+👤 *ผู้บันทึก/ผู้ยื่น:* ${senderName}
+📅 *วันที่:* ${newDoc.date}
+🔢 *รหัสอ้างอิง:* ${refNo}
+
+💡 *สถานะ:* บันทึกเข้าสมุดบัญชีรายจ่ายและระบบสรุปยอดเรียบร้อยแล้ว (สามารถกดปุ่ม [✏️ แก้ไขยอดเงิน] ด้านล่างหากต้องการเปลี่ยนหมวดหมู่หรือยอดเงิน)`;
+
+            const botMsg = {
+              id: `m_bot_${Date.now()}`,
+              sender: 'bot',
+              text: botResponse,
+              docLink: newDoc,
+              time: new Date().toTimeString().split(' ')[0].slice(0, 5)
+            };
+
+            if (isFirebaseConfigured()) {
+              saveDocToCloud('chat_messages', botMsg);
+            } else {
+              setChatMessages(prev => [...prev, botMsg]);
+            }
+            return;
+          }
+        }
+
+        botResponse = `🤖 สวัสดีครับคุณ ${activeLineUser?.employeeName || 'พนักงาน'}\n\nคำสั่งที่รองรับ:\n⚡ พิมพ์ยอดรายจ่าย เช่น "480", "ค่าน้ำมัน 480", "บิล 480"\n⚡ พิมพ์ "รายจ่ายเดือนนี้" หรือ "รายรับเดือนนี้"\n⚡ พิมพ์ "/summary" เพื่อดูรายงานการเงินประจำเดือนทั้งหมด\n⚡ แนบภาพสลิป/บิล เพื่อสแกนลงบันทึกบัญชี\n⚡ พิมพ์ "ลาป่วย..." เพื่อยื่นใบลาอัตโนมัติ`;
       }
 
       const botMsg = {
@@ -3362,9 +3466,9 @@ export default function App() {
         docType = 'handwritten_bill';
       }
 
-      // Try parsing number from filename (e.g., bill_1500.png)
-      const digitsMatch = file.name.match(/\d+/);
-      const parsedAmount = digitsMatch ? parseInt(digitsMatch[0], 10) : 1500;
+      // Try parsing number from filename (e.g., bill_480.png or receipt_480.jpg)
+      const digitsMatch = file.name.match(/\d+[\.,]?\d*/);
+      const parsedAmount = digitsMatch ? parseFloat(digitsMatch[0].replace(',', '')) : 480;
 
       const customSlip = {
         id: `slip_custom_${Date.now()}`,
@@ -3374,7 +3478,7 @@ export default function App() {
         merchant: merchant,
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().split(' ')[0].slice(0, 5),
-        amount: parsedAmount > 10 ? parsedAmount : 1500,
+        amount: parsedAmount > 0 ? parsedAmount : 480,
         ref: 'REF-UPLOAD-' + Math.floor(100000 + Math.random() * 900000),
         sender: activeLineUser?.employeeName || 'นายศักรินทร์ สุขใจ',
         receiver: settings.companyName,
