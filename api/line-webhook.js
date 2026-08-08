@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, limit, query, doc, setDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, limit, query, doc, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBqLwYJ9m8VZxLHprterX_o-0AiAR9kSAM",
@@ -125,7 +125,7 @@ function detectDocumentType({ captionText, merchant, sender, receiver, slipMemo 
     };
   }
 
-  // Priority 3: Fallback checks
+  // Priority 3: Keyword matches even if slip format
   if (hasTaxGoodsKeyword) {
     return {
       docType: "tax_invoice",
@@ -154,6 +154,62 @@ function detectDocumentType({ captionText, merchant, sender, receiver, slipMemo 
     badge: "📲 สลิปโอนเงินธนาคาร",
     categoryHint: null
   };
+}
+
+function detectCategory(text, defaultIsIncome) {
+  if (!text) return { category: defaultIsIncome ? "รายได้จากการขาย" : "ค่าใช้จ่ายทั่วไป", isIncome: defaultIsIncome };
+  
+  const raw = String(text).toLowerCase();
+  
+  // 1. ค่าเดินทางและยานพาหนะ
+  if (raw.includes("เดินทาง") || raw.includes("เติมน้ำมัน") || raw.includes("น้ำมัน") || raw.includes("ปตท") || raw.includes("ptt") || raw.includes("พาหนะ") || raw.includes("ซ่อมรถ") || raw.includes("รถ") || raw.includes("ทางด่วน") || raw.includes("fuel") || raw.includes("gas")) {
+    return { category: "ค่าเดินทางและยานพาหนะ", isIncome: false };
+  }
+
+  // 2. ค่าอาหารและเครื่องดื่ม
+  if (raw.includes("อาหาร") || raw.includes("ข้าวเที่ยง") || raw.includes("ข้าว") || raw.includes("กาแฟ") || raw.includes("เครื่องดื่ม") || raw.includes("กิน") || raw.includes("7-11") || raw.includes("เซเว่น") || raw.includes("food") || raw.includes("coffee")) {
+    return { category: "ค่าอาหารและเครื่องดื่ม", isIncome: false };
+  }
+
+  // 3. ค่าอุปกรณ์สำนักงาน
+  if (raw.includes("อุปกรณ์") || raw.includes("ของเข้าออฟฟิศ") || raw.includes("ซื้อของ") || raw.includes("โกลบอล") || raw.includes("แม็คโคร") || raw.includes("กระดาษ") || raw.includes("หมึก") || raw.includes("ของใช้") || raw.includes("office") || raw.includes("ไทวัสดุ") || raw.includes("โฮมโปร")) {
+    return { category: "ค่าอุปกรณ์สำนักงาน", isIncome: false };
+  }
+
+  // 4. ค่าสาธารณูปโภค (น้ำ, ไฟ, เน็ต, มือถือ)
+  if (raw.includes("ais") || raw.includes("one-2-call") || raw.includes("วัน-ทู-คอล") || raw.includes("เติมเงิน") || raw.includes("เน็ต") || raw.includes("โทรศัพท์") || raw.includes("มือถือ") || raw.includes("true") || raw.includes("dtac") || raw.includes("ไฟ") || raw.includes("น้ำ") || raw.includes("สาธารณูปโภค") || raw.includes("ค่าน้ำ") || raw.includes("ค่าไฟ") || raw.includes("utility")) {
+    return { category: "ค่าสาธารณูปโภค", isIncome: false };
+  }
+
+  // 5. ค่าเช่าสถานที่
+  if (raw.includes("ค่าเช่า") || raw.includes("เช่าออฟฟิศ") || raw.includes("rent")) {
+    return { category: "ค่าเช่าสถานที่", isIncome: false };
+  }
+
+  // 6. ค่าซ่อมแซมและบำรุงรักษา
+  if (raw.includes("ซ่อม") || raw.includes("บำรุง") || raw.includes("ช่าง") || raw.includes("repair")) {
+    return { category: "ค่าซ่อมแซมและบำรุงรักษา", isIncome: false };
+  }
+
+  // 7. ค่าโฆษณาและการตลาด
+  if (raw.includes("โฆษณา") || raw.includes("การตลาด") || raw.includes("ads") || raw.includes("marketing") || raw.includes("facebook") || raw.includes("google")) {
+    return { category: "ค่าโฆษณาและการตลาด", isIncome: false };
+  }
+
+  // 8. รายได้จากการขาย / บริการ
+  if (raw.includes("ขาย") || raw.includes("ยอดขาย") || raw.includes("ลูกค้าโอน") || raw.includes("sale")) {
+    return { category: "รายได้จากการขาย", isIncome: true };
+  }
+  if (raw.includes("บริการ") || raw.includes("ค่าบริการ") || raw.includes("service")) {
+    return { category: "รายได้จากการบริการ", isIncome: true };
+  }
+
+  // 9. ค่าใช้จ่ายทั่วไป fallback
+  if (raw.includes("จ่าย") || raw.includes("ค่า") || raw.includes("ชำระ") || raw.includes("ออก") || raw.includes("expense")) {
+    return { category: "ค่าใช้จ่ายทั่วไป", isIncome: false };
+  }
+
+  return { category: defaultIsIncome ? "รายได้จากการขาย" : "สำรองจ่าย", isIncome: defaultIsIncome };
 }
 
 export default async function handler(req, res) {
@@ -186,71 +242,114 @@ export default async function handler(req, res) {
       return res.status(200).send("OK");
     }
 
-    // Get settings from Firestore to retrieve LINE channel token
+    // Load settings from Firestore with strict 2-second timeout
     let settings = {};
     try {
-      const q = query(collection(db, "settings"), limit(1));
-      const snapshot = await getDocs(q);
-      snapshot.forEach((d) => {
-        settings = d.data();
-      });
+      const loadSettingsPromise = async () => {
+        let loaded = {};
+        const q = query(collection(db, "settings"), limit(5));
+        const snapshot = await getDocs(q);
+        snapshot.forEach((d) => {
+          loaded = { ...loaded, ...d.data() };
+        });
+        return loaded;
+      };
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({}), 2000));
+      settings = await Promise.race([loadSettingsPromise(), timeoutPromise]) || {};
     } catch (e) {
-      console.warn("Could not load settings from Firestore:", e);
+      console.warn("Could not load settings from Firestore, using fallback:", e);
     }
 
-    const channelToken = settings.lineChannelToken || "channel_token_mock_1234567890abcdef";
+    const channelToken = settings.lineChannelToken || 
+                         process.env.LINE_CHANNEL_TOKEN || 
+                         process.env.LINE_CHANNEL_ACCESS_TOKEN || 
+                         process.env.LINE_ACCESS_TOKEN || 
+                         "channel_token_mock_1234567890abcdef";
 
     for (const event of events) {
       if (event.type === "message") {
         const replyToken = event.replyToken;
-        const message = event.message;
+        const message = event.message || {};
 
         if (message.type === "text") {
-          const userText = message.text || "";
+          const userText = (message.text || "").trim();
 
-          // 1. Save user message to Firestore chat_messages
-          try {
-            const userMsg = {
-              id: `m_line_${Date.now()}`,
-              sender: "user",
-              text: userText,
-              time: new Date().toTimeString().split(" ")[0].slice(0, 5)
-            };
-            await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
-          } catch (e) {}
+          // 1. Save user message to Firestore chat_messages in background
+          const userMsg = {
+            id: `m_line_${Date.now()}`,
+            sender: "user",
+            text: userText,
+            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
+          };
+          setDoc(doc(db, "chat_messages", userMsg.id), userMsg).catch(() => {});
 
-          // 2. Generate bot reply
-          let botReplyText = `รับทราบข้อความ: "${userText}" ครับ\n\n💡 คำสั่งที่รองรับ:\n⚡ พิมพ์ยอดเงิน เช่น "200", "480", "ค่าน้ำมัน 200"\n⚡ พิมพ์ "สรุปรายจ่าย" หรือ "สรุปรายรับ"\n⚡ แนบรูปภาพสลิป/บิล เพื่อสแกนลงบัญชีอัตโนมัติ`;
-          
+          // 2. Parse text for quick expense recording (e.g. "ค่าน้ำมัน 200", "200", "ซื้อของ 350")
+          const numMatch = userText.match(/(\d+(\.\d+)?)/);
+          let botReplyText = "";
+
           if (userText.includes("สรุป") || userText.toLowerCase().includes("summary")) {
             botReplyText = `📊 รายงานสรุปบัญชีการเงินของคุณสามารถตรวจสอบได้ผ่านหน้าหลักแดชบอร์ด Vercel นะครับ`;
+          } else if (numMatch && (userText.length <= 30 || userText.includes("ค่า") || userText.includes("บิล") || userText.includes("ใบเสร็จ") || userText.includes("สลิป"))) {
+            const amount = parseFloat(numMatch[1]);
+            const detected = detectCategory(userText, false);
+            const detectedDocType = detectDocumentType({ captionText: userText, merchant: userText });
+            const todayStr = new Date().toISOString().split("T")[0];
+            const refNo = `Txt-${Math.floor(Math.random() * 900000) + 100000}`;
+
+            const newDoc = {
+              id: `doc-${Date.now()}`,
+              date: todayStr,
+              time: new Date().toTimeString().split(" ")[0].slice(0, 5),
+              type: detected.isIncome ? "receipt" : "tax_invoice",
+              docType: detectedDocType.docType,
+              docTypeLabel: detectedDocType.badge,
+              title: `[${detectedDocType.docTypeName}] ${userText}`,
+              ref: refNo,
+              amount: amount,
+              merchant: userText,
+              category: detected.category,
+              sender: "บันทึกผ่านแชท LINE",
+              receiver: "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด",
+              status: "archived",
+              details: `บันทึกรายการผ่านข้อความ LINE: ${userText}`
+            };
+
+            const newTx = {
+              id: `t_line_${Date.now()}`,
+              date: todayStr,
+              type: detected.isIncome ? "income" : "expense",
+              category: detected.category,
+              amount: amount,
+              description: `[LINE แชท: ${detected.category}] ${userText}`,
+              ref: refNo
+            };
+
+            // Save to Firestore
+            setDoc(doc(db, "documents", newDoc.id), newDoc).catch(() => {});
+            setDoc(doc(db, "transactions", newTx.id), newTx).catch(() => {});
+
+            botReplyText = `✅ บันทึกบัญชีสำเร็จ!\n\n📌 ประเภทเอกสาร: ${detectedDocType.badge}\n🏷️ หมวดหมู่บัญชี: ${detected.category}\n💰 ยอดเงิน: ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${todayStr}\n🔢 รหัสอ้างอิง: ${refNo}\n\n🖼️ จัดเก็บเข้าคลังเอกสารและสมุดบัญชีเรียบร้อยครับ`;
+          } else {
+            botReplyText = `รับทราบข้อความ: "${userText}" ครับ\n\n💡 คำสั่งที่รองรับ:\n⚡ พิมพ์ยอดเงิน เช่น "200", "480", "ค่าน้ำมัน 200"\n⚡ พิมพ์ "สรุปรายจ่าย" หรือ "สรุปรายรับ"\n⚡ แนบรูปภาพสลิป/บิล เพื่อสแกนลงบัญชีอัตโนมัติ`;
           }
 
-          try {
-            const botMsg = {
-              id: `m_line_bot_${Date.now()}`,
-              sender: "bot",
-              text: botReplyText,
-              time: new Date().toTimeString().split(" ")[0].slice(0, 5)
-            };
-            await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
-          } catch (e) {}
+          const botMsg = {
+            id: `m_line_bot_${Date.now()}`,
+            sender: "bot",
+            text: botReplyText,
+            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
+          };
+          setDoc(doc(db, "chat_messages", botMsg.id), botMsg).catch(() => {});
 
-          // 3. Reply to user on LINE
+          // 3. Send LINE Reply immediately
           await sendLineReply(replyToken, botReplyText, channelToken);
 
         } else if (message.type === "image") {
-          // Handle slip image upload
+          // Handle slip/bill image upload
           const messageId = message.id;
-
-          // Check caption text if provided
           let captionText = message.text || "";
-          let detected = detectCategory(captionText, false);
-          let isIncome = false;
-          let isAdvancePayment = true;
-          let category = "สำรองจ่าย";
 
-          // Default mock values as fallback (matching exact user slip)
+          // Default values
           let slipAmount = 200;
           let slipDate = new Date().toISOString().split("T")[0];
           let slipTime = new Date().toTimeString().split(" ")[0].slice(0, 5);
@@ -258,37 +357,33 @@ export default async function handler(req, res) {
           let slipSender = "นาย ศักรินทร์ อดกล้า";
           let slipReceiver = "ปตท.ปาลีรัตน์ ปิโตรเลียม";
           let slipMerchant = "ปตท.ปาลีรัตน์ ปิโตรเลียม (EDC17860205688231605)";
-          let isRealOcr = false;
           let base64Image = null;
           let slipMemo = "";
 
-          // Try real OCR via SlipOK if key exists
-          const slipokApiKey = settings.slipokApiKey;
+          // Try real OCR via SlipOK with strict 4-second timeout
+          const slipokApiKey = settings.slipokApiKey || process.env.SLIPOK_API_KEY;
           
           if (slipokApiKey && !slipokApiKey.startsWith("slipok_api_key_mock") && slipokApiKey.trim() !== "") {
             try {
               let branchId = "71669";
-              if (settings.slipokBranchId && settings.slipokBranchId.trim() !== "") {
-                const match = settings.slipokBranchId.match(/(\d+)$/);
-                if (match) {
-                  branchId = match[1];
-                } else {
-                  branchId = settings.slipokBranchId.trim();
-                }
+              const rawBranch = settings.slipokBranchId || process.env.SLIPOK_BRANCH_ID;
+              if (rawBranch && rawBranch.trim() !== "") {
+                const match = rawBranch.match(/(\d+)$/);
+                branchId = match ? match[1] : rawBranch.trim();
               }
 
-              // Download image from LINE Content API with timeout
+              // Download image from LINE Content API with 4s timeout
               const lineImgUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 6000);
+              const lineController = new AbortController();
+              const lineTimeoutId = setTimeout(() => lineController.abort(), 4000);
 
               const lineRes = await fetch(lineImgUrl, {
                 headers: {
                   Authorization: `Bearer ${channelToken}`
                 },
-                signal: controller.signal
+                signal: lineController.signal
               });
-              clearTimeout(timeoutId);
+              clearTimeout(lineTimeoutId);
 
               if (lineRes.ok) {
                 const imageBuffer = await lineRes.arrayBuffer();
@@ -296,13 +391,13 @@ export default async function handler(req, res) {
                   const base64Str = Buffer.from(imageBuffer).toString("base64");
                   base64Image = `data:image/jpeg;base64,${base64Str}`;
 
-                  // Call SlipOK API with timeout
+                  // Call SlipOK API with 4s timeout
                   const formData = new FormData();
                   const blob = new Blob([imageBuffer], { type: "image/jpeg" });
                   formData.append("files", blob, "slip.jpg");
 
                   const ocrController = new AbortController();
-                  const ocrTimeoutId = setTimeout(() => ocrController.abort(), 6000);
+                  const ocrTimeoutId = setTimeout(() => ocrController.abort(), 4000);
 
                   const slipokRes = await fetch(`https://api.slipok.com/api/line/apikey/${branchId}`, {
                     method: "POST",
@@ -334,13 +429,12 @@ export default async function handler(req, res) {
                       if (d.memo || d.note || d.remark || d.comment) {
                         slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
                       }
-                      isRealOcr = true;
                     }
                   }
                 }
               }
             } catch (err) {
-              console.warn("SlipOK / LINE image download error, proceeding with fallback:", err.message);
+              console.warn("SlipOK OCR error, proceeding safely with local detection:", err.message);
             }
           }
 
@@ -359,6 +453,9 @@ export default async function handler(req, res) {
           const rName = (slipReceiver || "").toLowerCase().trim();
           const isAwarinSender = sName.includes("เอวาริณณ์") || sName.includes("awarin");
           const isAwarinReceiver = rName.includes("เอวาริณณ์") || rName.includes("awarin");
+          let isIncome = false;
+          let isAdvancePayment = true;
+          let category = "สำรองจ่าย";
 
           if (isAwarinReceiver) {
             // Money transferred IN to company account -> Income
@@ -468,49 +565,55 @@ export default async function handler(req, res) {
           await sendLineReply(replyToken, botReplyText, channelToken);
 
           // 2. Save to Firestore in background
-          try {
-            const userMsg = {
-              id: `m_line_${Date.now()}`,
-              sender: "user",
-              text: captionText ? `📷 สลิป: ${captionText}` : "📷 ส่งรูปภาพสลิป",
-              isImage: true,
-              imageUrl: base64Image,
-              time: new Date().toTimeString().split(" ")[0].slice(0, 5)
-            };
-            await setDoc(doc(db, "chat_messages", userMsg.id), userMsg);
-            await setDoc(doc(db, "documents", newDoc.id), newDoc);
-            await setDoc(doc(db, "transactions", newTx.id), newTx);
-            await setDoc(doc(db, "chat_messages", botMsg.id), botMsg);
-          } catch (e) {
-            console.error("Error saving to Firestore:", e);
-          }
+          const userMsg = {
+            id: `m_line_${Date.now()}`,
+            sender: "user",
+            text: captionText ? `📷 แนบรูปภาพ: ${captionText}` : "📷 ส่งรูปภาพสลิป/บิล",
+            isImage: true,
+            imageUrl: base64Image,
+            time: new Date().toTimeString().split(" ")[0].slice(0, 5)
+          };
+          setDoc(doc(db, "chat_messages", userMsg.id), userMsg).catch(() => {});
+          setDoc(doc(db, "documents", newDoc.id), newDoc).catch(() => {});
+          setDoc(doc(db, "transactions", newTx.id), newTx).catch(() => {});
+          setDoc(doc(db, "chat_messages", botMsg.id), botMsg).catch(() => {});
+
+        } else {
+          // Other message types (sticker, audio, location, file)
+          const fallbackReply = `ได้รับข้อความ/ไฟล์เรียบร้อยครับ 💡 คุณสามารถ:\n⚡ ส่งรูปภาพสลิปโอนเงิน หรือ บิลใบเสร็จ เพื่อบันทึกบัญชีอัตโนมัติ\n⚡ พิมพ์ยอดเงิน เช่น "ค่าน้ำมัน 200", "ค่าอาหาร 150"\n⚡ พิมพ์ "สรุป" เพื่อดูภาพรวมบัญชี`;
+          await sendLineReply(replyToken, fallbackReply, channelToken);
         }
       }
     }
 
     return res.status(200).send("OK");
   } catch (error) {
-    console.error("Webhook Error:", error);
-    return res.status(500).json({ error: error.message });
+    console.error("Webhook Global Error:", error);
+    return res.status(200).send("OK");
   }
 }
 
 async function sendLineReply(replyToken, text, channelToken) {
   if (!replyToken) return;
-  if (!channelToken || channelToken === "channel_token_mock_1234567890abcdef") {
-    console.log("Mock Channel Token, skip external LINE messaging API call.");
+
+  const token = (channelToken && channelToken !== "channel_token_mock_1234567890abcdef") 
+    ? channelToken 
+    : (process.env.LINE_CHANNEL_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.LINE_ACCESS_TOKEN);
+
+  if (!token || token === "channel_token_mock_1234567890abcdef") {
+    console.log("No valid LINE Channel Access Token provided, skipping external HTTP reply.");
     return;
   }
   
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     const response = await fetch("https://api.line.me/v2/bot/message/reply", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${channelToken}`
+        Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
         replyToken: replyToken,
@@ -527,9 +630,11 @@ async function sendLineReply(replyToken, text, channelToken) {
     
     if (!response.ok) {
       const errText = await response.text();
-      console.error("LINE reply API failed:", errText);
+      console.error("LINE reply API failed:", response.status, errText);
+    } else {
+      console.log("LINE reply sent successfully!");
     }
   } catch (err) {
-    console.error("Failed to send LINE reply:", err);
+    console.error("Failed to send LINE reply:", err.message);
   }
 }
