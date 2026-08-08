@@ -278,6 +278,22 @@ const MOCK_SLIPS = [
     category: 'ค่าสาธารณูปโภค',
     description: 'สลิปรายการเติมเงินสำเร็จ เติมเงิน AIS วัน-ทู-คอล ผ่าน MyMo ธนาคารออมสิน',
     style: { color: '#EB008B', logo: 'MyMo GSB' }
+  },
+  {
+    id: 'slip-mymo-ptt-200',
+    name: '📲 สลิป MyMo: นาย ศักรินทร์ อดกล้า โอน ปตท. ฿200.00',
+    docType: 'bank_slip',
+    type: 'expense',
+    merchant: 'ปตท.ปาลีรัตน์ ปิโตรเลียม',
+    date: '2026-08-06',
+    time: '19:49:00',
+    amount: 200,
+    ref: 'Ref-862261',
+    sender: 'นาย ศักรินทร์ อดกล้า (ธนาคารออมสิน 0204xxxx3611)',
+    receiver: 'ปตท.ปาลีรัตน์ ปิโตรเลียม (EDC17860205688231605)',
+    category: 'สำรองจ่าย',
+    description: 'สลิปรายการชำระเงินสำเร็จ ปตท.ปาลีรัตน์ ปิโตรเลียม ผ่าน MyMo ธนาคารออมสิน (สำรองจ่ายโดยพนักงาน)',
+    style: { color: '#EB008B', logo: 'MyMo GSB' }
   }
 ];
 

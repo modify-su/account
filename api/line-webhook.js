@@ -176,13 +176,13 @@ export default async function handler(req, res) {
           let category = detected.category;
 
           // Default mock values as fallback
-          let slipAmount = Math.floor(Math.random() * 2000) + 150;
+          let slipAmount = 200;
           let slipDate = new Date().toISOString().split("T")[0];
           let slipTime = new Date().toTimeString().split(" ")[0].slice(0, 5);
           let slipRef = `Ref-${Math.floor(Math.random() * 900000) + 100000}`;
-          let slipSender = "ลูกค้าทางไลน์";
-          let slipReceiver = "บริษัท";
-          let slipMerchant = "ธนาคารกสิกรไทย (KBank)";
+          let slipSender = "นาย ศักรินทร์ อดกล้า";
+          let slipReceiver = "ปตท.ปาลีรัตน์ ปิโตรเลียม";
+          let slipMerchant = "ปตท.ปาลีรัตน์ ปิโตรเลียม";
           let isRealOcr = false;
           let base64Image = null;
           let slipMemo = "";
@@ -287,29 +287,6 @@ export default async function handler(req, res) {
                       slipMemo = String(d.memo || d.note || d.remark || d.comment).trim();
                     }
 
-                    // Check if slip memo or caption contains keywords for category classification
-                    const memoOrCaption = captionText ? `${captionText} ${slipMemo}` : slipMemo;
-                    if (memoOrCaption) {
-                      const detected = detectCategory(memoOrCaption, isIncome);
-                      category = detected.category;
-                      isIncome = detected.isIncome;
-                    } else if (!captionText) {
-                      // Smart Income vs Expense Classification fallback
-                      const compName = (settings.companyName || "").toLowerCase().trim();
-                      const sName = slipSender.toLowerCase();
-                      const rName = slipReceiver.toLowerCase();
-
-                      if (compName && compName.length > 2 && sName.includes(compName.slice(0, 4))) {
-                        // Our company is the sender -> Money paid out (Expense)
-                        isIncome = false;
-                        category = "ค่าใช้จ่ายทั่วไป";
-                      } else if (compName && compName.length > 2 && rName.includes(compName.slice(0, 4))) {
-                        // Our company is the receiver -> Money received (Income)
-                        isIncome = true;
-                        category = "รายได้จากการขาย";
-                      }
-                    }
-
                     // Try to get bank info
                     if (d.sendingBank) {
                       const bankNames = {
@@ -363,6 +340,36 @@ export default async function handler(req, res) {
             } catch (e) {}
           }
 
+          // STRICT CLASSIFICATION RULE:
+          // Check if sender is "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด"
+          const sName = (slipSender || "").toLowerCase().trim();
+          const rName = (slipReceiver || "").toLowerCase().trim();
+          const isAwarinSender = sName.includes("เอวาริณณ์") || sName.includes("awarin");
+          const isAwarinReceiver = rName.includes("เอวาริณณ์") || rName.includes("awarin");
+
+          let isIncome = false;
+          let isAdvancePayment = false;
+          let category = "สำรองจ่าย";
+
+          if (isAwarinReceiver) {
+            // Money transferred IN to company account -> Income
+            isIncome = true;
+            isAdvancePayment = false;
+            category = "รายได้จากการขาย";
+          } else if (isAwarinSender) {
+            // Money transferred OUT from company main account -> Direct Expense
+            isIncome = false;
+            isAdvancePayment = false;
+            const detectedCat = detectCategory(slipReceiver + " " + slipMerchant + " " + (captionText || "") + " " + (slipMemo || ""), false);
+            category = detectedCat.category;
+          } else {
+            // Sender is NOT "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด" (e.g. นาย ศักรินทร์ อดกล้า, พนักงาน, บุคคลอื่น)
+            // STRICT RULE: Auto categorize as "สำรองจ่าย" (Advance Payment)!
+            isIncome = false;
+            isAdvancePayment = true;
+            category = "สำรองจ่าย";
+          }
+
           // 1. Save user image placeholder to Firestore chat_messages
           const userMsg = {
             id: `m_line_${Date.now()}`,
@@ -381,21 +388,23 @@ export default async function handler(req, res) {
             id: docId,
             date: slipDate,
             time: slipTime,
-            type: isIncome ? "receipt" : "expense",
-            title: isRealOcr 
-              ? (isIncome ? `สลิปโอนเงินเข้า (${category})` : `สลิปโอนเงินออก (${category})`)
-              : `สลิปโอนเงิน (${category})`,
+            type: isIncome ? "receipt" : "tax_invoice",
+            docType: "bank_slip",
+            docTypeLabel: isAdvancePayment ? "💳 สลิปสำรองจ่าย" : (isIncome ? "📲 สลิปเงินเข้า" : "📲 สลิปโอนเงิน"),
+            title: isAdvancePayment 
+              ? `[สำรองจ่าย: ${slipSender}] ${slipReceiver || slipMerchant}`
+              : (isIncome ? `[รายรับ] จาก ${slipSender}` : `[รายจ่าย] ชำระ ${slipReceiver}`),
             ref: slipRef,
             amount: slipAmount,
-            merchant: slipMerchant,
+            merchant: slipReceiver || slipMerchant,
             category: category,
             sender: slipSender,
             receiver: slipReceiver,
             imageUrl: base64Image,
             status: "archived",
-            details: isRealOcr 
-              ? `สแกนสลิปจริงสำเร็จทาง LINE (${isIncome ? 'รายรับ' : 'รายจ่าย'})${descMemo}`
-              : `บันทึกอัตโนมัติจาก LINE Bot${descMemo}`
+            details: isAdvancePayment
+              ? `สำรองจ่ายโดย [${slipSender}] ชำระให้ ${slipReceiver || slipMerchant} (รอตั้งเบิกคืน)`
+              : (isIncome ? `รายรับโอนเงินเข้าจาก [${slipSender}]` : `รายจ่ายบริษัท ชำระให้ [${slipReceiver}]`)
           };
 
           const newTx = {
@@ -404,17 +413,23 @@ export default async function handler(req, res) {
             type: isIncome ? "income" : "expense",
             category: category,
             amount: slipAmount,
-            description: isRealOcr 
-              ? (isIncome ? `LINE Bot [${category}]: จาก ${slipSender}${descMemo}` : `LINE Bot [${category}]: ให้ ${slipReceiver}${descMemo}`)
-              : `LINE Bot OCR [${category}]: ${slipMerchant}${descMemo}`,
+            description: isAdvancePayment 
+              ? `[สำรองจ่ายโดย ${slipSender}] ${slipReceiver || slipMerchant}${descMemo}`
+              : (isIncome ? `[รายรับ: ${category}] จาก ${slipSender}${descMemo}` : `[รายจ่าย: ${category}] ให้ ${slipReceiver}${descMemo}`),
             ref: slipRef,
             imageUrl: base64Image
           };
 
           let memoLine = slipMemo ? `\n📝 บันทึกความจำ: ${slipMemo}` : (captionText ? `\n📝 บันทึกความจำ: ${captionText}` : "");
-          const botReplyText = isRealOcr
-            ? `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ (เงินเข้า)' : '🔴 รายจ่าย (เงินออก)'}\n🏷️ หมวดหมู่: ${category}${memoLine}\n👤 ${isIncome ? 'ผู้โอน' : 'ผู้รับเงิน'}: ${isIncome ? slipSender : slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`
-            : `✅ สแกนสลิปสำเร็จ (โหมดจำลอง)!\n\n📌 ประเภท: ${isIncome ? '🟢 รายรับ' : '🔴 รายจ่าย'}\n🏷️ หมวดหมู่: ${category}${memoLine}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString()}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n*บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+          let botReplyText = "";
+          
+          if (isAdvancePayment) {
+            botReplyText = `✅ ตรวจสอบสลิปสำเร็จ!\n\n📌 ประเภท: 💳 สำรองจ่าย (Advance Payment)\n📂 หมวดหมู่: สำรองจ่าย (รอตั้งเบิกคืน)\n👤 ผู้โอน/ผู้ชำระ: ${slipSender}\n🏢 ร้านค้า/ผู้รับเงิน: ${slipReceiver || slipMerchant}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n📌 แจ้งเตือนสำรองจ่าย: ตรวจพบชื่อผู้โอนคือ [${slipSender}] (ไม่ใช่บัญชีหลัก "บริษัท เอวาริณณ์ อินเตอร์กรุ๊ป จำกัด") ระบบได้ระบุเป็น [สำรองจ่าย] และบันทึกเข้าสมุดบัญชีเพื่อรอตั้งเบิกเรียบร้อยครับ`;
+          } else if (isIncome) {
+            botReplyText = `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: 🟢 รายรับ (เงินเข้า)\n🏷️ หมวดหมู่: ${category}${memoLine}\n👤 ผู้โอน: ${slipSender}\n🏢 ผู้รับเงิน: ${slipReceiver}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+          } else {
+            botReplyText = `✅ ตรวจสอบสลิปจริงสำเร็จ!\n\n📌 ประเภท: 🔴 รายจ่าย (เงินออก)\n🏷️ หมวดหมู่: ${category}${memoLine}\n👤 บัญชีต้นทาง: ${slipSender}\n🏢 ผู้รับเงิน: ${slipReceiver || slipMerchant}\n💰 ยอดเงิน: ฿${slipAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}\n📅 วันที่: ${slipDate}\n🔢 รหัสอ้างอิง: ${slipRef}\n\n🖼️ บันทึกรูปสลิปและจัดเก็บเข้าหมวดหมู่ "${category}" เรียบร้อยครับ`;
+          }
 
           const botMsg = {
             id: `m_line_bot_${Date.now()}`,
