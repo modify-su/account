@@ -232,19 +232,35 @@ const MOCK_SLIPS = [
     style: { color: '#D97706', logo: 'HAND BILL' }
   },
   {
+    id: 'receipt-ptt-fuel',
+    name: '🧾 บิลค่าน้ำมัน ปตท. (บิลรายจ่าย ฿480)',
+    docType: 'official_receipt',
+    type: 'expense',
+    merchant: 'สถานีบริการน้ำมัน ปตท. (PTT Station)',
+    date: '2026-08-08',
+    time: '09:15:00',
+    amount: 480,
+    ref: 'TAX-PTT-48092',
+    sender: 'นายศักรินทร์ สุขใจ',
+    receiver: 'สถานีบริการน้ำมัน ปตท.',
+    category: 'ค่าเดินทางและยานพาหนะ',
+    description: 'ใบเสร็จรับเงินค่าน้ำมันเชื้อเพลิงเดินทางปฏิบัติงาน',
+    style: { color: '#0284c7', logo: 'PTT 480' }
+  },
+  {
     id: 'handwritten-food',
-    name: '✍️ ใบเสร็จเขียนมือ / บิลเงินสด (ร้านเจ้ไฝ)',
+    name: '✍️ ใบเสร็จเขียนมือ / บิลเงินสด (ร้านเจ้ไฝ ฿480)',
     docType: 'handwritten_bill',
     type: 'expense',
     merchant: 'ร้านเจ้ไฝอาหารตามสั่ง (บิลเขียนมือ)',
     date: '2026-08-02',
     time: '12:30:00',
-    amount: 650,
+    amount: 480,
     ref: 'BILL-HAND-0018',
     sender: 'นายศักรินทร์ สุขใจ',
     receiver: 'ร้านเจ้ไฝอาหารตามสั่ง',
     category: 'ค่ารับรองลูกค้าและประชุม',
-    description: 'บิลเงินสดเขียนมือ ค่าอาหารเลี้ยงต้อนรับลูกค้า',
+    description: 'บิลเงินสดเขียนมือ ค่าอาหารเลี้ยงต้อนรับลูกค้าและประชุม',
     style: { color: '#B45309', logo: 'HAND BILL' }
   }
 ];
@@ -496,6 +512,7 @@ export default function App() {
   const [lineScanProgress, setLineScanProgress] = useState(0);
   const [isLineScanning, setIsLineScanning] = useState(false);
   const [lineOCRCoords, setLineOCRCoords] = useState([]); // Visual Bounding Boxes [{x, y, w, h, label, active}]
+  const [lineSlipFilter, setLineSlipFilter] = useState('all'); // all, slip, bill
 
   // Document Hub Archive State
   const [documents, setDocuments] = useState(() => safeJSONParse('flowledger_docs_v3', []));
@@ -5846,11 +5863,46 @@ export default function App() {
 
               {/* OCR Visual Scanner / Slip Selectors */}
               <div className="glass-card" style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
-                <h3 className="mb-4">1. ทดสอบโดยเลือกเอกสารสลิป/ใบเสร็จ</h3>
-                <span className="form-label" style={{ marginBottom: '1rem' }}>คลิกเพื่อจำลองการส่งภาพสลิปเข้าไปยัง LINE Chat เพื่อเริ่มสแกนดึงข้อมูล:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h3 style={{ margin: 0 }}>1. ทดสอบเลือก: สลิปโอนเงิน หรือ บิลรายจ่าย</h3>
+                </div>
+
+                {/* Filter Pill Tabs for Slip vs Bill */}
+                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className={`btn ${lineSlipFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setLineSlipFilter('all')}
+                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.75rem', borderRadius: '20px' }}
+                  >
+                    🌟 ทั้งหมด ({MOCK_SLIPS.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${lineSlipFilter === 'slip' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setLineSlipFilter('slip')}
+                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.75rem', borderRadius: '20px', backgroundColor: lineSlipFilter === 'slip' ? '#059669' : undefined, borderColor: lineSlipFilter === 'slip' ? '#059669' : undefined }}
+                  >
+                    📲 สลิปโอนเงิน ({MOCK_SLIPS.filter(s => s.docType === 'bank_slip').length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${lineSlipFilter === 'bill' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setLineSlipFilter('bill')}
+                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.75rem', borderRadius: '20px', backgroundColor: lineSlipFilter === 'bill' ? '#0284c7' : undefined, borderColor: lineSlipFilter === 'bill' ? '#0284c7' : undefined }}
+                  >
+                    🧾 บิลรายจ่าย & ใบเสร็จ ({MOCK_SLIPS.filter(s => s.docType !== 'bank_slip').length})
+                  </button>
+                </div>
                 
-                <div className="sample-grid" style={{ marginBottom: '1.5rem' }}>
-                  {MOCK_SLIPS.map(slip => (
+                <div className="sample-grid" style={{ marginBottom: '1rem', maxHeight: '180px', overflowY: 'auto' }}>
+                  {MOCK_SLIPS
+                    .filter(slip => {
+                      if (lineSlipFilter === 'slip') return slip.docType === 'bank_slip';
+                      if (lineSlipFilter === 'bill') return slip.docType === 'official_receipt' || slip.docType === 'handwritten_bill';
+                      return true;
+                    })
+                    .map(slip => (
                     <button 
                       key={slip.id} 
                       className="sample-button"
@@ -5859,8 +5911,15 @@ export default function App() {
                       disabled={isLineScanning}
                     >
                       <span className="sample-button-icon" style={{ color: slip.style.color }}>{slip.style.logo}</span>
-                      <strong style={{ fontSize: '0.75rem' }}>{slip.name}</strong>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>฿{slip.amount.toLocaleString()}</span>
+                      <div style={{ textAlign: 'left', flexGrow: 1, overflow: 'hidden' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 'bold', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{slip.name}</div>
+                        <div style={{ fontSize: '0.65rem', color: slip.docType === 'bank_slip' ? '#059669' : '#0284c7' }}>
+                          {slip.docType === 'bank_slip' ? '🏷️ สลิปโอนเงินธนาคาร' : '🧾 บิลรายจ่ายบริษัท'}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: slip.docType === 'bank_slip' ? '#059669' : 'var(--danger)' }}>
+                        ฿{slip.amount.toLocaleString()}
+                      </span>
                     </button>
                   ))}
                 </div>
